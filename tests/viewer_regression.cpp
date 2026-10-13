@@ -192,9 +192,9 @@ int wmain(int argc, wchar_t** argv) {
         WNDCLASSW focusClass{};
         focusClass.lpfnWndProc = DefWindowProcW;
         focusClass.hInstance = GetModuleHandleW(nullptr);
-        focusClass.lpszClassName = L"SharedVDRegressionFocus";
+        focusClass.lpszClassName = L"VKomadoRegressionFocus";
         RegisterClassW(&focusClass);
-        session.focus_window = CreateWindowExW(WS_EX_TOPMOST, focusClass.lpszClassName, L"SharedVD F6 test target",
+        session.focus_window = CreateWindowExW(WS_EX_TOPMOST, focusClass.lpszClassName, L"VKomado F6 test target",
             WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 450, 250, nullptr, nullptr, focusClass.hInstance, nullptr);
         SetForegroundWindow(session.focus_window);
         if (GetForegroundWindow() != session.focus_window) {

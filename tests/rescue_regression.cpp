@@ -64,10 +64,10 @@ int wmain(int argc, wchar_t** argv) {
     require(secondary.size()==1, "exactly one secondary fixture monitor");
     MONITORINFO source{sizeof(source)}; GetMonitorInfoW(secondary[0],&source);
     WNDCLASSW cls{}; cls.lpfnWndProc=fixture_proc; cls.hInstance=GetModuleHandleW(nullptr);
-    cls.lpszClassName=L"SharedVDRescueFixture"; RegisterClassW(&cls);
+    cls.lpszClassName=L"VKomadoRescueFixture"; RegisterClassW(&cls);
     Fixtures fixtures;
     auto make = [&](int x,int y,HWND owner=nullptr,DWORD extended=0) {
-      HWND window=CreateWindowExW(extended,cls.lpszClassName,L"SharedVD rescue test",
+      HWND window=CreateWindowExW(extended,cls.lpszClassName,L"VKomado rescue test",
         WS_OVERLAPPEDWINDOW,x,y,600,400,owner,nullptr,cls.hInstance,nullptr);
       fixtures.windows.push_back(window); ShowWindow(window,SW_SHOWNOACTIVATE); return window;
     };

@@ -1,7 +1,10 @@
-SharedVD 1.0.0 — 仮想ディスプレイビューア（Windows 11 x64）
+VKomado 1.0.0 — 仮想ディスプレイビューア（Windows 11 x64）
+
+旧名SharedVDの後継です。旧版を終了してからVKomado.exeを起動してください。
+既存のキー設定を引き継ぐため、内部の設定・ログ保存先はSharedVDのまま維持します。
 
 起動
-SharedVD.exe をダブルクリックしてください。管理者権限や開発ツールは不要です。
+VKomado.exe をダブルクリックしてください。管理者権限や開発ツールは不要です。
 このポータブル版にはドライバーを同梱していません。Virtual Display Driverを別途導入し、
 「VDD by MTT」1台を60Hzの拡張ディスプレイとして有効にしてください。
 ドライバーの導入・ON／OFFも管理する場合はセットアップ版を利用してください。
@@ -10,7 +13,7 @@ SharedVD.exe をダブルクリックしてください。管理者権限や開�
 「表示 → ショートカット設定」で、帰還キーとウィンドウ選択キーを変更・無効化できます。
 設定はユーザー別に保存し、次回起動に復元します。初期値はF6／Shift+F6です。
 他アプリのグローバル登録との競合は検出しますが、Adobe・IDE等のアプリ内キーとの重複は自動判定できません。
-設定だけを開くには SharedVD.exe --shortcuts を実行します。
+設定だけを開くには VKomado.exe --shortcuts を実行します。
 以下のキー表記は初期値です。変更した場合は設定したキーを使ってください。
 
 操作
@@ -55,7 +58,7 @@ VDDの削除は別工程です。このEXEはドライバーの追加・削除�
 --keep-windows : 診断用。終了時の自動退避を無効にする
 
 ライセンス
-SharedVD本体はLICENSE.txt、利用OSSの情報はTHIRD-PARTY-NOTICES.mdを参照してください。
+VKomado本体はLICENSE.txt、利用OSSの情報はTHIRD-PARTY-NOTICES.mdを参照してください。
 ビューアはWindows Virtual Monitor Loopbackを改変したものです。
 https://github.com/giri256/windows-virtual-monitor-loopback
 Copyright (c) 2026 giri256. MIT License. ライセンス全文: Loopback-MIT.txt

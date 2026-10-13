@@ -143,7 +143,7 @@ void Hotkeys::show_editor(std::function<void()> closed) {
   constexpr DWORD style = WS_CAPTION | WS_SYSMENU | WS_POPUP;
   AdjustWindowRectExForDpi(&rect, style, FALSE, WS_EX_CONTROLPARENT, dpi);
   int width = rect.right - rect.left, height = rect.bottom - rect.top;
-  editor_ = CreateWindowExW(WS_EX_CONTROLPARENT, cls.lpszClassName, L"ショートカット設定 — SharedVD", style,
+  editor_ = CreateWindowExW(WS_EX_CONTROLPARENT, cls.lpszClassName, L"ショートカット設定 — VKomado", style,
       monitor.rcWork.left + (monitor.rcWork.right - monitor.rcWork.left - width) / 2,
       monitor.rcWork.top + (monitor.rcWork.bottom - monitor.rcWork.top - height) / 2,
       width, height, owner_, nullptr, cls.hInstance, this);

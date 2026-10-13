@@ -14,7 +14,7 @@ LRESULT CALLBACK paint_fixture(HWND window, UINT message, WPARAM wp, LPARAM lp) 
     HBRUSH brush=CreateSolidBrush(RGB(30 + phase%150,70,180));
     FillRect(dc,&rect,brush); DeleteObject(brush);
     SetBkMode(dc,TRANSPARENT); SetTextColor(dc,RGB(255,255,255));
-    DrawTextW(dc,L"SharedVD moving-window benchmark",-1,&rect,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+    DrawTextW(dc,L"VKomado moving-window benchmark",-1,&rect,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
     EndPaint(window,&paint); return 0;
   }
   return DefWindowProcW(window,message,wp,lp);
@@ -35,9 +35,9 @@ int wmain(int argc,wchar_t** argv) {
   },reinterpret_cast<LPARAM>(&secondary));
   if (secondary.size()!=1) return 3;
   WNDCLASSW cls{}; cls.lpfnWndProc=paint_fixture; cls.hInstance=GetModuleHandleW(nullptr);
-  cls.lpszClassName=L"SharedVDRenderBenchmark"; RegisterClassW(&cls);
+  cls.lpszClassName=L"VKomadoRenderBenchmark"; RegisterClassW(&cls);
   const RECT area=secondary[0];
-  HWND fixture=CreateWindowExW(after_motion ? 0 : WS_EX_NOACTIVATE,cls.lpszClassName,L"SharedVD moving-content test",
+  HWND fixture=CreateWindowExW(after_motion ? 0 : WS_EX_NOACTIVATE,cls.lpszClassName,L"VKomado moving-content test",
       WS_POPUP,area.left+100,area.top+150,640,480,nullptr,nullptr,cls.hInstance,nullptr);
   ShowWindow(fixture,SW_SHOWNOACTIVATE);
   std::wstring command=L"\""+std::wstring(argv[1])+L"\" --keep-windows --auto-exit-ms 10000 --log \""+argv[2]+L"\"";

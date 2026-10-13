@@ -12,9 +12,9 @@ BEGIN
  BEGIN
   BLOCK "040904B0"
   BEGIN
-   VALUE "FileDescription", "SharedVD"
+   VALUE "FileDescription", "VKomado"
    VALUE "FileVersion", "1.0.0"
-   VALUE "ProductName", "SharedVD"
+   VALUE "ProductName", "VKomado"
    VALUE "ProductVersion", "1.0.0"
    VALUE "LegalCopyright", "Copyright (c) 2026 msd.shsk; see bundled third-party licenses."
   END

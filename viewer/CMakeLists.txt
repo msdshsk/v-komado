@@ -17,7 +17,7 @@ add_executable(lgwl_viewer WIN32
 )
 target_include_directories(lgwl_viewer PRIVATE ../app)
 
-set(SHAREDVD_RESOURCES "" CACHE PATH "SharedVD branding resources (optional)")
+set(SHAREDVD_RESOURCES "" CACHE PATH "VKomado branding resources (optional)")
 if(SHAREDVD_RESOURCES)
   enable_language(RC)
   set(SHAREDVD_ICON "${SHAREDVD_RESOURCES}/sharedvd.ico")

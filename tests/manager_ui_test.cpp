@@ -11,6 +11,8 @@ int wmain(int argc,wchar_t** argv){
   try{
     for(int i=0;i<100;++i){window=FindWindowW(L"SharedVDControlWindow",nullptr);DWORD pid{};if(window)GetWindowThreadProcessId(window,&pid);if(pid==process.dwProcessId)break;window=nullptr;Sleep(30);}
     if(!window)throw std::runtime_error("manager window missing");
+    wchar_t title[256]{};GetWindowTextW(window,title,256);
+    if(std::wstring(title).find(L"VKomado")!=0)throw std::runtime_error("manager title has obsolete branding");
     Sleep(250);
     for(int id:{101,102,103,104,105})if(!GetDlgItem(window,id))throw std::runtime_error("missing action button");
     if(!svd::read_state().exists && (IsWindowEnabled(GetDlgItem(window,101)) || IsWindowEnabled(GetDlgItem(window,102))))throw std::runtime_error("power controls enabled before installation");

@@ -34,8 +34,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Manager safety tests failed' }
 $compiler = Join-Path $root 'artifacts/tools/inno/ISCC.exe'
 if (-not (Test-Path $compiler)) { throw 'Inno Setup 7.1.0 portable compiler is required at artifacts/tools/inno. See docs/SETUP.md.' }
 if ((Get-AuthenticodeSignature $compiler).Status -ne 'Valid') { throw 'Installer compiler signature invalid' }
-& $compiler "/DRoot=$root" "$root/packaging/SharedVD.iss"
+& $compiler "/DRoot=$root" "$root/packaging/VKomado.iss"
 if ($LASTEXITCODE -ne 0) { throw 'Installer build failed' }
-$setup = Join-Path $root 'artifacts/releases/SharedVD-1.0.0-Setup-win-x64.exe'
+$setup = Join-Path $root 'artifacts/releases/VKomado-1.0.0-Setup-win-x64.exe'
 Get-FileHash $setup -Algorithm SHA256 | Format-List | Out-String | Set-Content "$setup.sha256.txt"
 Write-Host "SETUP: $setup"

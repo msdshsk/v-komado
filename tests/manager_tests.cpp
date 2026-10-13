@@ -18,7 +18,7 @@ int wmain(int argc,wchar_t** argv){
     check(rejects([&]{svd::select_device(svd::State{},{a});}),"unrecorded installation rejected");
     if(argc!=2)throw std::runtime_error("supply verified driver directory");
     svd::validate_payload(argv[1]);check(true,"real driver payload hashes verified");
-    auto temporary=svd::fs::temp_directory_path()/(L"SharedVD-test-"+std::to_wstring(GetCurrentProcessId()));
+    auto temporary=svd::fs::temp_directory_path()/(L"VKomado-test-"+std::to_wstring(GetCurrentProcessId()));
     svd::fs::create_directory(temporary);
     for(auto name:{L"MttVDD.inf",L"MttVDD.dll",L"mttvdd.cat"})svd::fs::copy_file(svd::fs::path(argv[1])/name,temporary/name);
     {std::ofstream corrupt(temporary/L"MttVDD.inf",std::ios::app);corrupt<<"modified";}

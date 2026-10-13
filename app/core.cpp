@@ -215,21 +215,21 @@ void stop_viewer_and_rescue(){
   const auto list=devices();if(list.size()>1)throw Error(L"VDDが複数あるため、自動退避の対象を確定できません。");
   if(!list.empty() && attached(list.front())) {
     physical_primary_required(list.front());
-    const DWORD code=run(executable_dir()/L"SharedVD.Viewer.exe",L"--rescue-windows");
+    const DWORD code=run(executable_dir()/L"VKomado.Viewer.exe",L"--rescue-windows");
     if(code!=0)throw Error(L"ウィンドウを退避できなかったため、停止・削除を中止しました。");
   }
   HWND viewer=FindWindowW(L"LGWLViewerWindow",nullptr);
   if(viewer){DWORD pid{};GetWindowThreadProcessId(viewer,&pid);Handle process(OpenProcess(SYNCHRONIZE,FALSE,pid));if(!process.h)fail(L"ビューアを確認できません");PostMessageW(viewer,WM_CLOSE,0,0);if(WaitForSingleObject(process.h,7000)!=WAIT_OBJECT_0)throw Error(L"ビューアを通常終了してから、もう一度実行してください。");}
 }
-void launch_viewer(){if(FindWindowW(L"LGWLViewerWindow",nullptr))return;const auto exe=executable_dir()/L"SharedVD.Viewer.exe";STARTUPINFOW startup{sizeof(startup)};PROCESS_INFORMATION process{};std::wstring command=L"\""+exe.wstring()+L"\"";if(!CreateProcessW(exe.c_str(),command.data(),nullptr,nullptr,FALSE,0,nullptr,exe.parent_path().c_str(),&startup,&process))fail(L"ビューアを起動できません");CloseHandle(process.hThread);CloseHandle(process.hProcess);}
-std::wstring inspect(){const auto s=read_state();const auto list=devices();std::wostringstream out;out<<L"SharedVD 1.0.0\n";out<<L"installation="<<(s.exists?s.directory:L"not installed")<<L"\n";out<<L"phase="<<s.phase<<L"\n";out<<L"driver_ownership="<<(s.owned_device?L"owned":L"existing / external")<<L"\n";out<<L"device_count="<<list.size()<<L"\n";for(const auto& d:list)out<<L"id="<<d.id<<L" inf="<<d.inf<<L" enabled="<<d.enabled<<L" problem="<<d.problem<<L" attached="<<attached(d)<<L"\n";
+void launch_viewer(){if(FindWindowW(L"LGWLViewerWindow",nullptr))return;const auto exe=executable_dir()/L"VKomado.Viewer.exe";STARTUPINFOW startup{sizeof(startup)};PROCESS_INFORMATION process{};std::wstring command=L"\""+exe.wstring()+L"\"";if(!CreateProcessW(exe.c_str(),command.data(),nullptr,nullptr,FALSE,0,nullptr,exe.parent_path().c_str(),&startup,&process))fail(L"ビューアを起動できません");CloseHandle(process.hThread);CloseHandle(process.hProcess);}
+std::wstring inspect(){const auto s=read_state();const auto list=devices();std::wostringstream out;out<<L"VKomado 1.0.0\n";out<<L"installation="<<(s.exists?s.directory:L"not installed")<<L"\n";out<<L"phase="<<s.phase<<L"\n";out<<L"driver_ownership="<<(s.owned_device?L"owned":L"existing / external")<<L"\n";out<<L"device_count="<<list.size()<<L"\n";for(const auto& d:list)out<<L"id="<<d.id<<L" inf="<<d.inf<<L" enabled="<<d.enabled<<L" problem="<<d.problem<<L" attached="<<attached(d)<<L"\n";
   for(DWORD i=0;;++i){DISPLAY_DEVICEW display{sizeof(display)};if(!EnumDisplayDevicesW(nullptr,i,&display,0))break;out<<L"display="<<display.DeviceName<<L" id="<<display.DeviceID<<L" flags="<<display.StateFlags<<L"\n";}
   return out.str();}
 int preflight(){
   no_reparse(installation_dir());no_reparse(installation_dir()/L"Driver");
   const auto s=read_state();const auto list=devices();
   if(list.size()>1)throw Error(L"既存のVDDが複数あります。対象を1台に整理してから導入してください。");
-  if(s.exists){if(!equal(s.directory,installation_dir().wstring()))throw Error(L"既存の導入先が異なります。");if(s.phase!=L"ready")throw Error(L"前回の処理が未完了です。先にSharedVDをアンインストールしてください。");select_device(s,list);}
+  if(s.exists){if(!equal(s.directory,installation_dir().wstring()))throw Error(L"既存の導入先が異なります。");if(s.phase!=L"ready")throw Error(L"前回の処理が未完了です。先にVKomadoをアンインストールしてください。");select_device(s,list);}
   if(list.empty() && (key_exists(vdd_key) || fs::exists(L"C:\\VirtualDisplayDriver")))throw Error(L"既存のVDD設定が残っています。上書きせず導入を中止しました。");
   return 0;
 }
@@ -249,7 +249,7 @@ int install(){
     if(!copied && copy_error!=ERROR_FILE_EXISTS)fail(L"署名付きドライバーを登録できません",copy_error);
     s.inf=fs::path(destination).filename().wstring();if(!valid_oem_inf(s.inf))throw Error(L"登録したドライバー名を確認できません。");s.owned_inf=copied!=FALSE;write_state(s);
     Info info(SetupDiCreateDeviceInfoList(&GUID_DEVCLASS_DISPLAY,nullptr));SP_DEVINFO_DATA data{sizeof(data)};
-    if(!SetupDiCreateDeviceInfoW(info.h,L"Display",&GUID_DEVCLASS_DISPLAY,L"SharedVD Virtual Display",nullptr,DICD_GENERATE_ID,&data))fail(L"仮想画面を作成できません");
+    if(!SetupDiCreateDeviceInfoW(info.h,L"Display",&GUID_DEVCLASS_DISPLAY,L"VKomado Virtual Display",nullptr,DICD_GENERATE_ID,&data))fail(L"仮想画面を作成できません");
     constexpr wchar_t ids[]=L"Root\\MttVDD\0";
     if(!SetupDiSetDeviceRegistryPropertyW(info.h,&data,SPDRP_HARDWAREID,reinterpret_cast<const BYTE*>(ids),sizeof(ids)))fail(L"仮想画面を設定できません");
     s.id=instance_id(info.h,data);s.owned_device=true;write_state(s);

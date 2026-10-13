@@ -1,4 +1,4 @@
-SharedVD application icon
+VKomado application icon
 
 Created with OpenAI image generation. Source: sharedvd.png.
 Windows icon: sharedvd.ico (16, 20, 24, 32, 40, 48, 64, 128, 256 px).

@@ -1,6 +1,6 @@
 # Third-party notices
 
-SharedVD's original code is licensed under the MIT License; see LICENSE.
+VKomado's original code is licensed under the MIT License; see LICENSE.
 
 ## Windows Virtual Monitor Loopback
 
@@ -13,7 +13,7 @@ The full license is preserved in `viewer/LICENSE` and
 `third_party/licenses/Loopback-MIT.txt` (portable packages: `Loopback-MIT.txt`;
 installed packages: `Licenses/Loopback-MIT.txt`).
 
-SharedVD changes include cursor jumping instead of input forwarding,
+VKomado changes include cursor jumping instead of input forwarding,
 borderless hover controls, frame pacing, window rescue, window selection,
 configurable shortcuts, application branding and static runtime linking.
 
@@ -32,5 +32,5 @@ Inno Setup is a separately obtained build tool, not a source dependency
 vendored in this repository. Its applicable licensing terms are at
 https://jrsoftware.org/isinfo.php and https://jrsoftware.org/isorder.php.
 
-The SharedVD icon was generated with OpenAI image generation.
+The VKomado icon was generated with OpenAI image generation.
 Asset and conversion information is recorded in `assets/ICON.txt`.

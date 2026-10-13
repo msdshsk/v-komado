@@ -27,7 +27,7 @@ LRESULT CALLBACK fixture_proc(HWND window, UINT message, WPARAM wp, LPARAM lp) {
     PAINTSTRUCT ps{}; HDC dc = BeginPaint(window, &ps); RECT rect{}; GetClientRect(window, &rect);
     HBRUSH brush = CreateSolidBrush(RGB(22, 115, 150)); FillRect(dc, &rect, brush); DeleteObject(brush);
     SetBkMode(dc, TRANSPARENT); SetTextColor(dc, RGB(255, 255, 255));
-    DrawTextW(dc, L"SharedVD  ·  Window transfer test", -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    DrawTextW(dc, L"VKomado  ·  Window transfer test", -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     EndPaint(window, &ps); return 0;
   }
   return DefWindowProcW(window, message, wp, lp);
@@ -73,7 +73,7 @@ int wmain(int argc, wchar_t** argv) {
     }, reinterpret_cast<LPARAM>(&monitors));
     require(monitors.size() == 1, "exactly one secondary test display"); HMONITOR remote = monitors.front();
     MONITORINFO main{sizeof(main)}, target{sizeof(target)}; GetMonitorInfoW(primary, &main); GetMonitorInfoW(remote, &target);
-    WNDCLASSW cls{}; cls.hInstance = GetModuleHandleW(nullptr); cls.lpfnWndProc = fixture_proc; cls.lpszClassName = L"SharedVDPickerFixture"; RegisterClassW(&cls);
+    WNDCLASSW cls{}; cls.hInstance = GetModuleHandleW(nullptr); cls.lpfnWndProc = fixture_proc; cls.lpszClassName = L"VKomadoPickerFixture"; RegisterClassW(&cls);
     auto make = [&](const wchar_t* caption, HWND owner = nullptr, DWORD ex = 0) {
       HWND window = CreateWindowExW(ex, cls.lpszClassName, caption, WS_OVERLAPPEDWINDOW,
           main.rcWork.left + 100, main.rcWork.top + 100, 640, 420, owner, nullptr, cls.hInstance, nullptr);
@@ -168,7 +168,7 @@ int wmain(int argc, wchar_t** argv) {
     PostMessageW(chooser, WM_KEYDOWN, VK_ESCAPE, 0); require(wait_for([&] { return !picker(); }), "empty list can be cancelled");
     // Visual QA uses the same picker in this test process, so only its own
     // capture affinity can be changed. Real viewer privacy remains enabled.
-    for (auto caption : {L"Browser — Project meeting", L"Editor — SharedVD", L"Explorer — Documents", L"Notes — Weekly review", L"Terminal — Build output", L"Calendar — October"}) make(caption);
+    for (auto caption : {L"Browser — Project meeting", L"Editor — VKomado", L"Explorer — Documents", L"Notes — Weekly review", L"Terminal — Build output", L"Calendar — October"}) make(caption);
     HWND previewOwner = CreateWindowExW(0, cls.lpszClassName, L"Preview host", WS_OVERLAPPEDWINDOW,
         100, 100, 500, 300, nullptr, nullptr, cls.hInstance, nullptr);
     session.windows.push_back(previewOwner);

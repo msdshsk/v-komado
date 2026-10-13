@@ -58,7 +58,7 @@ void WindowPicker::toggle(HWND owner, HMONITOR virtual_monitor, DWORD only_proce
   const int x = main.rcWork.left + (main.rcWork.right - main.rcWork.left - width) / 2;
   const int y = main.rcWork.top + (main.rcWork.bottom - main.rcWork.top - height) / 2;
   window_ = CreateWindowExW(WS_EX_TOOLWINDOW, cls.lpszClassName,
-      returning_ ? L"メイン画面へ戻す — SharedVD" : L"仮想画面へ送る — SharedVD",
+      returning_ ? L"メイン画面へ戻す — VKomado" : L"仮想画面へ送る — VKomado",
       WS_POPUP | WS_CAPTION | WS_SYSMENU, x, y, width, height, owner_, nullptr, cls.hInstance, this);
   if (!window_) return;
   dpi_ = GetDpiForWindow(window_);

@@ -24,8 +24,8 @@ int wmain(int argc,wchar_t** argv) {
   if(argc!=2&&argc!=3)return 2;
   const auto dir=std::filesystem::path(argv[1])/ (L"hotkeys-test-"+std::to_wstring(GetCurrentProcessId()));
   std::filesystem::create_directories(dir); const auto file=dir/L"hotkeys.conf";
-  HWND owner=CreateWindowExW(0,L"STATIC",L"SharedVD test host",WS_POPUP,0,0,100,100,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
-  HWND competitor=CreateWindowExW(0,L"STATIC",L"SharedVD test competitor",WS_POPUP,0,0,100,100,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+  HWND owner=CreateWindowExW(0,L"STATIC",L"VKomado test host",WS_POPUP,0,0,100,100,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+  HWND competitor=CreateWindowExW(0,L"STATIC",L"VKomado test competitor",WS_POPUP,0,0,100,100,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
   int result=1;
   try {
     check(!FindWindowW(L"SharedVDHotkeyEditor",nullptr),"no existing editor is controlled");

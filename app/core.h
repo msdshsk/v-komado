@@ -7,12 +7,13 @@
 
 namespace svd {
 namespace fs = std::filesystem;
+// Compatibility identity: retain the device/INF ownership record across the VKomado rename.
 inline constexpr wchar_t state_key[] = L"SOFTWARE\\SharedVD";
 inline constexpr wchar_t vdd_key[] = L"SOFTWARE\\MikeTheTech\\VirtualDisplayDriver";
 inline constexpr wchar_t hardware_id[] = L"Root\\MttVDD";
 struct Error : std::runtime_error {
   std::wstring message;
-  explicit Error(std::wstring text) : std::runtime_error("SharedVD error"), message(std::move(text)) {}
+  explicit Error(std::wstring text) : std::runtime_error("VKomado error"), message(std::move(text)) {}
 };
 struct Device { std::wstring id, inf; bool present=false, enabled=false; ULONG problem=0; };
 struct State {

@@ -15,10 +15,10 @@ int wmain(int argc,wchar_t** argv) {
     if(action==L"--preflight")return svd::preflight();
     if(action==L"--verify-payload"){svd::validate_payload(svd::executable_dir()/L"Driver");std::wcout<<L"payload=verified\n";return 0;}
     if(action!=L"--install" && action!=L"--enable" && action!=L"--disable" && action!=L"--uninstall")throw svd::Error(L"不明な操作です。");
-    if(!svd::administrator())throw svd::Error(L"管理者権限が必要です。SharedVDの管理画面から実行してください。");
+    if(!svd::administrator())throw svd::Error(L"管理者権限が必要です。VKomadoの管理画面から実行してください。");
     mutex=CreateMutexW(nullptr,FALSE,L"Global\\SharedVD.DriverOperation");
     const DWORD lock_result=mutex?WaitForSingleObject(mutex,0):WAIT_FAILED;
-    if(lock_result!=WAIT_OBJECT_0 && lock_result!=WAIT_ABANDONED)throw svd::Error(L"別のSharedVD操作が進行中です。");
+    if(lock_result!=WAIT_OBJECT_0 && lock_result!=WAIT_ABANDONED)throw svd::Error(L"別のVKomado操作が進行中です。");
     int result=0;
     if(action==L"--install")result=svd::install();
     if(action==L"--enable")result=svd::change_power(true);
@@ -30,11 +30,11 @@ int wmain(int argc,wchar_t** argv) {
   } catch(const svd::Error& error) {
     if(mutex)CloseHandle(mutex);
     std::wcerr<<error.message<<L"\n";
-    if(ui)MessageBoxW(nullptr,error.message.c_str(),L"SharedVD — 操作を完了できませんでした",MB_OK|MB_ICONERROR);
+    if(ui)MessageBoxW(nullptr,error.message.c_str(),L"VKomado — 操作を完了できませんでした",MB_OK|MB_ICONERROR);
     return 1;
   } catch(const std::exception&) {
     if(mutex)CloseHandle(mutex);
-    if(ui)MessageBoxW(nullptr,L"ファイルまたはWindowsの設定にアクセスできません。導入記録を残して処理を中止しました。",L"SharedVD",MB_OK|MB_ICONERROR);
+    if(ui)MessageBoxW(nullptr,L"ファイルまたはWindowsの設定にアクセスできません。導入記録を残して処理を中止しました。",L"VKomado",MB_OK|MB_ICONERROR);
     return 1;
   }
 }

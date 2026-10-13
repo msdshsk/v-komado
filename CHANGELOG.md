@@ -2,7 +2,9 @@
 
 ## 1.0.0
 
-First public release of SharedVD.
+First public release of VKomado.
+
+- Renamed from SharedVD; the installer identity, driver ownership records and user settings remain compatible for in-place upgrades.
 
 - Configurable global shortcuts for cursor return and window transfer, with persistence, disable/reset options and registration conflict feedback.
 - Virtual monitor viewer with click-to-jump, cursor locator, borderless hover controls and aspect-preserving scaling.

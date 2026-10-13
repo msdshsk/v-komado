@@ -2,14 +2,15 @@
   #error Root is required
 #endif
 [Setup]
+; Keep the original identity and directory to upgrade SharedVD in place.
 AppId={{2D2B6B84-29EF-4D46-B60F-099928D881F7}
-AppName=SharedVD
+AppName=VKomado
 AppVersion=1.0.0
-AppPublisher=SharedVD Project
+AppPublisher=VKomado Project
 DefaultDirName={autopf}\SharedVD
 DisableDirPage=yes
 UsePreviousAppDir=no
-DefaultGroupName=SharedVD
+DefaultGroupName=VKomado
 DisableProgramGroupPage=yes
 ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os
@@ -17,10 +18,10 @@ MinVersion=10.0.22000
 PrivilegesRequired=admin
 WizardStyle=modern
 OutputDir={#Root}\artifacts\releases
-OutputBaseFilename=SharedVD-1.0.0-Setup-win-x64
+OutputBaseFilename=VKomado-1.0.0-Setup-win-x64
 Compression=lzma2
 SolidCompression=yes
-UninstallDisplayIcon={app}\SharedVD.Control.exe
+UninstallDisplayIcon={app}\VKomado.Control.exe
 SetupIconFile={#Root}\assets\sharedvd.ico
 CloseApplications=yes
 RestartApplications=no
@@ -31,9 +32,9 @@ InfoBeforeFile={#Root}\packaging\SETUP-NOTES.txt
 Name: japanese; MessagesFile: compiler:Languages\Japanese.isl
 
 [Files]
-Source: {#Root}\artifacts\manager-build\Release\SharedVD.Control.exe; DestDir: {app}; Flags: ignoreversion
-Source: {#Root}\artifacts\manager-build\Release\SharedVD.Device.exe; DestDir: {app}; Flags: ignoreversion
-Source: {#Root}\artifacts\viewer-build\Release\lgwl_viewer.exe; DestDir: {app}; DestName: SharedVD.Viewer.exe; Flags: ignoreversion
+Source: {#Root}\artifacts\manager-build\Release\VKomado.Control.exe; DestDir: {app}; Flags: ignoreversion
+Source: {#Root}\artifacts\manager-build\Release\VKomado.Device.exe; DestDir: {app}; Flags: ignoreversion
+Source: {#Root}\artifacts\viewer-build\Release\lgwl_viewer.exe; DestDir: {app}; DestName: VKomado.Viewer.exe; Flags: ignoreversion
 Source: {#Root}\artifacts\downloads\driver-25.7.23\VirtualDisplayDriver\MttVDD.inf; DestDir: {app}\Driver; Flags: ignoreversion
 Source: {#Root}\artifacts\downloads\driver-25.7.23\VirtualDisplayDriver\MttVDD.dll; DestDir: {app}\Driver; Flags: ignoreversion
 Source: {#Root}\artifacts\downloads\driver-25.7.23\VirtualDisplayDriver\mttvdd.cat; DestDir: {app}\Driver; Flags: ignoreversion
@@ -46,24 +47,34 @@ Source: {#Root}\scripts\Enable-ResolutionPresets.cmd; DestDir: {app}\Tools
 Source: {#Root}\scripts\Enable-ResolutionPresets.ps1; DestDir: {app}\Tools
 Source: {#Root}\scripts\ResolutionPresets.psm1; DestDir: {app}\Tools
 Source: {#Root}\packaging\SETUP-NOTES.txt; DestDir: {app}; DestName: README.txt
-Source: {#Root}\artifacts\manager-build\Release\SharedVD.Device.exe; Flags: dontcopy
+Source: {#Root}\artifacts\manager-build\Release\VKomado.Device.exe; Flags: dontcopy
 
 [Icons]
-Name: {autoprograms}\SharedVD; Filename: {app}\SharedVD.Control.exe
+Name: {autoprograms}\VKomado; Filename: {app}\VKomado.Control.exe
 
 [Run]
-Filename: {app}\SharedVD.Control.exe; Description: SharedVDを開く; Flags: postinstall nowait skipifsilent runasoriginaluser
+Filename: {app}\VKomado.Control.exe; Description: VKomadoを開く; Flags: postinstall nowait skipifsilent runasoriginaluser
 
 [Code]
 var
   DriverNeedsRestart: Boolean;
 
+procedure RemoveLegacyFile(const Path: String);
+begin
+  if FileExists(Path) and not DeleteFile(Path) then
+    Log('Could not remove legacy file: ' + Path);
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   Code: Integer;
 begin
-  ExtractTemporaryFile('SharedVD.Device.exe');
-  if not Exec(ExpandConstant('{tmp}\SharedVD.Device.exe'), '--preflight --ui-errors', '', SW_HIDE, ewWaitUntilTerminated, Code) then
+  if CheckForMutexes('Local\SharedVdLoopbackViewer') then begin
+    Result := 'SharedVD / VKomadoのビューアを終了してから、もう一度実行してください。';
+    Exit;
+  end;
+  ExtractTemporaryFile('VKomado.Device.exe');
+  if not Exec(ExpandConstant('{tmp}\VKomado.Device.exe'), '--preflight --ui-errors', '', SW_HIDE, ewWaitUntilTerminated, Code) then
     Result := '既存の仮想ディスプレイを確認できませんでした。'
   else if Code <> 0 then
     Result := '既存のVDDまたは未完了の導入を確認してください。設定は上書きしていません。'
@@ -76,11 +87,16 @@ var
   Code: Integer;
 begin
   if CurStep = ssPostInstall then begin
-    if not Exec(ExpandConstant('{app}\SharedVD.Device.exe'), '--install --ui-errors', '', SW_HIDE, ewWaitUntilTerminated, Code) then
+    if not Exec(ExpandConstant('{app}\VKomado.Device.exe'), '--install --ui-errors', '', SW_HIDE, ewWaitUntilTerminated, Code) then
       RaiseException('ドライバーのセットアップを開始できませんでした。');
     if Code = 3010 then DriverNeedsRestart := True
     else if Code <> 0 then
-      RaiseException('ドライバーのセットアップが完了しませんでした。SharedVDのアンインストールで導入途中の状態を整理できます。');
+      RaiseException('ドライバーのセットアップが完了しませんでした。VKomadoのアンインストールで導入途中の状態を整理できます。');
+    { Remove only obsolete app files after the new helper accepted the existing state. }
+    RemoveLegacyFile(ExpandConstant('{app}\SharedVD.Control.exe'));
+    RemoveLegacyFile(ExpandConstant('{app}\SharedVD.Device.exe'));
+    RemoveLegacyFile(ExpandConstant('{app}\SharedVD.Viewer.exe'));
+    RemoveLegacyFile(ExpandConstant('{autoprograms}\SharedVD.lnk'));
   end;
 end;
 
@@ -96,7 +112,7 @@ begin
   { usUninstall runs after confirmation and before file removal. Inno 7.1
     propagates exceptions at this stage: files remain if driver cleanup fails. }
   if CurUninstallStep = usUninstall then begin
-    if not Exec(ExpandConstant('{app}\SharedVD.Device.exe'), '--uninstall --ui-errors', '', SW_HIDE, ewWaitUntilTerminated, Code) then
+    if not Exec(ExpandConstant('{app}\VKomado.Device.exe'), '--uninstall --ui-errors', '', SW_HIDE, ewWaitUntilTerminated, Code) then
       RaiseException('退避・削除処理を開始できないため、アンインストールを中止しました。');
     if Code <> 0 then
       RaiseException('退避またはドライバー削除が完了しないため、アプリと復旧用ファイルを残しました。');

@@ -1,4 +1,4 @@
-# For SharedVD 0.5/0.6 using the signed VDD 25.7.23 XML profile.
+# For VKomado and legacy SharedVD installs using the signed VDD 25.7.23 XML profile.
 [CmdletBinding()]
 param([switch]$Preview)
 $ErrorActionPreference = 'Stop'
@@ -8,8 +8,9 @@ Import-Module (Join-Path $PSScriptRoot 'ResolutionPresets.psm1') -Force
 if (-not [Environment]::Is64BitProcess) { throw 'Please use 64-bit PowerShell.' }
 $state = Get-ItemProperty 'HKLM:/SOFTWARE/SharedVD'
 $install = Join-Path $env:ProgramFiles 'SharedVD'
-if ($state.Phase -ne 'ready' -or $state.Directory -ne $install) { throw 'SharedVD installation is not ready.' }
-$helper = Join-Path $install 'SharedVD.Device.exe'
+if ($state.Phase -ne 'ready' -or $state.Directory -ne $install) { throw 'VKomado installation is not ready.' }
+$helper = Join-Path $install 'VKomado.Device.exe'
+if (-not (Test-Path -LiteralPath $helper)) { $helper = Join-Path $install 'SharedVD.Device.exe' }
 $driverKey = Get-ItemProperty 'HKLM:/SOFTWARE/MikeTheTech/VirtualDisplayDriver' -ErrorAction SilentlyContinue
 $configDirectory = 'C:\VirtualDisplayDriver'
 if ($driverKey -and $driverKey.PSObject.Properties['VDDPATH'] -and $driverKey.VDDPATH) {
@@ -40,7 +41,7 @@ Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
-public static class SharedVDResolutionModes {
+public static class VKomadoResolutionModes {
     [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
     public struct Display {
         public uint Size;
@@ -78,7 +79,7 @@ public static class SharedVDResolutionModes {
 }
 '@
 $required = @('1280x720@60','1920x1080@60','2560x1440@60','3840x2160@60')
-$modes = @([SharedVDResolutionModes]::Read($state.DeviceId))
+$modes = @([VKomadoResolutionModes]::Read($state.DeviceId))
 Write-Host "Configuration: $config"
 Write-Host "Device: $($state.DeviceId) / currently enabled: $wasEnabled"
 Write-Host "Presets: $($required -join ', ')"
@@ -90,12 +91,12 @@ $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.Wind
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     throw 'Run Enable-ResolutionPresets.cmd and approve Windows administrator confirmation.'
 }
-if (Get-Process -Name SharedVD.Control -ErrorAction SilentlyContinue) {
-    throw 'Close the SharedVD control window, then run this script again.'
+if (Get-Process -Name VKomado.Control,SharedVD.Control -ErrorAction SilentlyContinue) {
+    throw 'Close the VKomado control window, then run this script again.'
 }
 function Invoke-Device([string]$Action) {
     $child = Start-Process -FilePath $helper -ArgumentList $Action -WindowStyle Hidden -PassThru -Wait
-    if ($child.ExitCode -ne 0) { throw "SharedVD $Action failed (exit $($child.ExitCode)). No automatic reboot was performed." }
+    if ($child.ExitCode -ne 0) { throw "VKomado $Action failed (exit $($child.ExitCode)). No automatic reboot was performed." }
 }
 Invoke-Device '--preflight'
 if ($profile.Added.Count -eq 0 -and @($required | Where-Object { $_ -notin $modes }).Count -eq 0) {
@@ -117,13 +118,13 @@ try {
     Set-VddConfigurationFile -Source $temporary -Destination $config -Backup $backup
     $changed = $true
     Invoke-Device '--enable'
-    $modes = @([SharedVDResolutionModes]::Read($state.DeviceId))
+    $modes = @([VKomadoResolutionModes]::Read($state.DeviceId))
     $missing = @($required | Where-Object { $_ -notin $modes })
     if ($missing.Count) { throw "Driver did not advertise presets: $($missing -join ', ')" }
     if (-not $wasEnabled) { Invoke-Device '--disable' }
     Write-Host 'SUCCESS: all four resolutions are available at 60 Hz.'
     Write-Host 'Open Windows Settings > System > Display, select VDD, then choose Display resolution.'
-    Write-Host 'Use SharedVD to open the viewer again. The backup is retained at the path above.'
+    Write-Host 'Use VKomado to open the viewer again. The backup is retained at the path above.'
 } catch {
     $failure = $_
     if ($changed) {
@@ -137,7 +138,7 @@ try {
         } catch { Write-Warning "Automatic restore failed. Backup: $backup. $($_.Exception.Message)" }
     }
     if ($disabled -and $wasEnabled) {
-        try { Invoke-Device '--enable' } catch { Write-Warning "Could not re-enable VDD. Use SharedVD ON. $($_.Exception.Message)" }
+        try { Invoke-Device '--enable' } catch { Write-Warning "Could not re-enable VDD. Use VKomado ON. $($_.Exception.Message)" }
     }
     throw $failure
 } finally {

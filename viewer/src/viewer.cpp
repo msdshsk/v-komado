@@ -657,7 +657,7 @@ class ViewerApp {
                                2;
 
     hwnd_ = CreateWindowExW(
-        0, window_class.lpszClassName, L"Virtual Monitor Loopback",
+        0, window_class.lpszClassName, L"VKomado",
         kViewerStyle, window_left, window_top, window_width,
         window_height, nullptr, nullptr, instance_, this);
     if (hwnd_ == nullptr) {
@@ -921,7 +921,7 @@ class ViewerApp {
           L"一部のウィンドウをメイン画面へ戻せませんでした。ビューアの終了を中止します。\n"
           L"応答停止中・管理者権限のアプリなどを手動で戻してから、もう一度終了してください。\n"
           L"詳細はログに記録しました。",
-          L"SharedVD — ウィンドウの退避", MB_OK | MB_ICONWARNING);
+          L"VKomado — ウィンドウの退避", MB_OK | MB_ICONWARNING);
       return false;
     }
     return true;
@@ -1072,7 +1072,7 @@ class ViewerApp {
     cls.lpszClassName = L"SharedVDHoverChrome";
     if (!RegisterClassExW(&cls) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return false;
     chrome_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, cls.lpszClassName,
-        L"SharedVD — 表示サイズ / 最小化 / 最大化 / 閉じる", WS_POPUP,
+        L"VKomado — 表示サイズ / 最小化 / 最大化 / 閉じる", WS_POPUP,
         0, 0, 1, 1, hwnd_, nullptr, instance_, this);
     cls.lpszClassName = L"SharedVDCursorRing";
     if (!RegisterClassExW(&cls) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return false;
@@ -1164,7 +1164,7 @@ class ViewerApp {
     SetBkMode(dc, TRANSPARENT);
     SetTextColor(dc, RGB(225, 230, 238));
     std::wostringstream text;
-    text << L"SharedVD  ·  ";
+    text << L"VKomado  ·  ";
     if (target_) {
       const int width = target_->bounds.right - target_->bounds.left;
       const auto content = calculate_content_rect(width, target_->bounds.bottom - target_->bounds.top);
@@ -1731,7 +1731,7 @@ class ViewerApp {
     const int source_height = target_->bounds.bottom - target_->bounds.top;
     const auto content = calculate_content_rect(source_width, source_height);
     std::wostringstream title;
-    title << L"Virtual Monitor Loopback | " << std::fixed
+    title << L"VKomado | " << std::fixed
           << std::setprecision(1)
           << source_width << L"x" << source_height << L" → "
           << std::lround(content.width) << L"x" << std::lround(content.height)
@@ -1907,7 +1907,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     winrt::handle single_instance(CreateMutexW(nullptr, FALSE, L"Local\\SharedVdLoopbackViewer"));
     if (!single_instance || GetLastError() == ERROR_ALREADY_EXISTS) {
       MessageBoxW(nullptr, L"ビューアは既に起動中です。既存のウィンドウを使用してください。",
-                  L"Virtual Monitor Loopback", MB_OK | MB_ICONINFORMATION);
+                  L"VKomado", MB_OK | MB_ICONINFORMATION);
       return 3;
     }
     ViewerApp viewer(options);
@@ -1917,18 +1917,18 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
           L"仮想ディスプレイが拡張表示・60Hzで有効になっているか確認してください。\n"
           L"既定では VDD by MTT が1台だけ存在する構成に対応します。\n\n"
           L"詳細ログ:\n" + options.log_path.wstring();
-      MessageBoxW(nullptr, message.c_str(), L"SharedVD", MB_ICONERROR | MB_OK);
+      MessageBoxW(nullptr, message.c_str(), L"VKomado", MB_ICONERROR | MB_OK);
       return 2;
     }
     return viewer.run();
   } catch (const winrt::hresult_error& error) {
-    MessageBoxW(nullptr, error.message().c_str(), L"Virtual Monitor Loopback",
+    MessageBoxW(nullptr, error.message().c_str(), L"VKomado",
                 MB_ICONERROR | MB_OK);
     return 10;
   } catch (const std::exception& error) {
     const std::wstring message(error.what(), error.what() +
                                                  std::strlen(error.what()));
-    MessageBoxW(nullptr, message.c_str(), L"Virtual Monitor Loopback",
+    MessageBoxW(nullptr, message.c_str(), L"VKomado",
                 MB_ICONERROR | MB_OK);
     return 11;
   }

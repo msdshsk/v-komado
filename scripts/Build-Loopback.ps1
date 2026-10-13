@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $root 'viewer'
 $build = Join-Path $root 'artifacts/viewer-build'
-if (-not (Test-Path "$source/CMakeLists.txt")) { throw 'SharedVD viewer source is missing. Clone the complete repository.' }
+if (-not (Test-Path "$source/CMakeLists.txt")) { throw 'VKomado viewer source is missing. Clone the complete repository.' }
 $cmake = Get-Command cmake.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1
 if (-not $cmake) {
     $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
