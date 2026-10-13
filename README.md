@@ -2,6 +2,8 @@
 
 **画面の中に、もうひとつの作業スペース。**
 
+[紹介サイト](https://msdshsk.github.io/v-komado/) · [ダウンロード / Releases](https://github.com/msdshsk/v-komado/releases/latest) · [不具合報告](https://github.com/msdshsk/v-komado/issues)
+
 Windows 11の仮想ディスプレイを、手元の画面内のウィンドウとして表示・操作するツールです。物理画面を4Kのまま使い、会議共有用の1080p画面などを別に用意できます。
 
 仮想ディスプレイには [Virtual Display Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver)、ビューアの基盤には [Windows Virtual Monitor Loopback](https://github.com/giri256/windows-virtual-monitor-loopback) を利用しています。
@@ -13,6 +15,8 @@ Windows 11の仮想ディスプレイを、手元の画面内のウィンドウ�
 - セットアップは管理者権限が必要。通常のビューア・ショートカット設定は管理者権限不要です。
 
 ## インストールと操作
+
+[最新リリース](https://github.com/msdshsk/v-komado/releases/latest)からセットアップEXEをダウンロードしてください。VDD導入済みの環境にはビューア単体のポータブルZIPも用意しています。
 
 `VKomado-1.0.0-Setup-win-x64.exe` を実行し、スタートメニューの「VKomado」を開きます。既存のVDDが1台ある場合は再利用し、アンインストール時もそのドライバーを残します。詳細は [セットアップと復旧](docs/SETUP.md) を参照してください。
 

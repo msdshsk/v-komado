@@ -4,6 +4,9 @@ external/
 .kuroko/
 .tmp/
 .tasks/
+output/
+.playwright-cli/
+_site/
 .vs/
 build/
 out/
