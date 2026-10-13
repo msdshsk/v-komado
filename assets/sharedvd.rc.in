@@ -1,0 +1,26 @@
+101 ICON "@SHAREDVD_ICON@"
+#include <winver.h>
+1 VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+ FILEFLAGS 0
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+BEGIN
+ BLOCK "StringFileInfo"
+ BEGIN
+  BLOCK "040904B0"
+  BEGIN
+   VALUE "FileDescription", "SharedVD"
+   VALUE "FileVersion", "1.0.0"
+   VALUE "ProductName", "SharedVD"
+   VALUE "ProductVersion", "1.0.0"
+   VALUE "LegalCopyright", "Copyright (c) 2026 msd.shsk; see bundled third-party licenses."
+  END
+ END
+ BLOCK "VarFileInfo"
+ BEGIN
+  VALUE "Translation", 0x409, 1200
+ END
+END

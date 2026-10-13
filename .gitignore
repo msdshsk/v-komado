@@ -1,0 +1,16 @@
+artifacts/
+external/
+.codex/
+.kuroko/
+.tmp/
+.tasks/
+.vs/
+build/
+out/
+*.user
+*.suo
+*.pdb
+*.obj
+*.log
+.env
+.env.*

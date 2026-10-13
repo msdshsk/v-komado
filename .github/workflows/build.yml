@@ -1,0 +1,17 @@
+name: Build viewer
+on:
+  push:
+  pull_request:
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        shell: pwsh
+        run: cmake -S viewer -B build -A x64 "-DSHAREDVD_RESOURCES=$env:GITHUB_WORKSPACE/assets"
+      - name: Build portable viewer
+        run: cmake --build build --config Release --parallel
+      - name: Test XML migration and file rollback
+        shell: powershell
+        run: ./tests/resolution_presets_tests.ps1
