@@ -20,9 +20,13 @@ class WindowPicker {
   ~WindowPicker();
   void toggle(HWND owner, HMONITOR virtual_monitor, DWORD only_process,
               std::function<void(const std::wstring&)> log);
+  void move_active(HWND owner, HMONITOR virtual_monitor, DWORD only_process,
+                   std::function<void(const std::wstring&)> log);
   void close(bool restore = false);
   bool open() const { return window_ != nullptr; }
  private:
+  void begin(HWND owner, HMONITOR virtual_monitor, DWORD only_process,
+             std::function<void(const std::wstring&)> log, HWND active = nullptr);
   struct Pending { HWND window; DWORD process; RECT destination; bool maximize; };
   static LRESULT CALLBACK procedure(HWND, UINT, WPARAM, LPARAM);
   LRESULT message(UINT, WPARAM, LPARAM);
@@ -41,7 +45,7 @@ class WindowPicker {
   HMONITOR virtual_{}, primary_{}, destination_{};
   DWORD only_process_{};
   POINT original_cursor_{};
-  bool returning_{}, busy_{};
+  bool returning_{}, busy_{}, direct_{};
   UINT dpi_ = 96;
   int page_{}, selected_{}, pressed_ = -1, hover_ = -1;
   ULONGLONG deadline_{};

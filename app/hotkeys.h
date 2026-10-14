@@ -3,6 +3,7 @@
 #include <array>
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <string>
 
 namespace sharedvd {
@@ -12,7 +13,8 @@ struct KeyBinding {
   UINT modifiers{}, key{};
   bool operator==(const KeyBinding&) const = default;
 };
-using KeyBindings = std::array<KeyBinding, 2>;
+constexpr int kShortcutCount = 3;
+using KeyBindings = std::array<KeyBinding, kShortcutCount>;
 KeyBindings default_bindings();
 std::wstring key_label(KeyBinding key);
 std::wstring validate_bindings(const KeyBindings& bindings);
@@ -25,7 +27,8 @@ class Hotkeys {
   void reload();
   void shutdown();
   void show_editor(std::function<void()> closed = {});
-  bool apply(const KeyBindings& candidate, std::wstring& error);
+  bool apply(const KeyBindings& candidate, std::wstring& error, std::optional<bool> follow_dialogs = {});
+  bool follow_dialogs() const { return follow_dialogs_; }
   const KeyBindings& bindings() const { return bindings_; }
   bool registered(int index) const { return registered_[index]; }
   std::wstring label(int index) const { return key_label(bindings_[index]); }
@@ -40,7 +43,8 @@ class Hotkeys {
   HWND owner_{}, editor_{};
   HFONT font_{};
   bool active_ = true, closing_{}, committed_{};
-  std::array<bool, 2> registered_{};
+  bool follow_dialogs_{};
+  std::array<bool, kShortcutCount> registered_{};
   KeyBindings bindings_ = default_bindings();
   std::filesystem::path path_;
   std::wstring load_warning_;

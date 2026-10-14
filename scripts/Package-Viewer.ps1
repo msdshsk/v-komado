@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 & "$PSScriptRoot/Build-Loopback.ps1"
 $release = Join-Path $root 'artifacts/releases'
-$version = if ($Diagnostic) { '1.0.0-diagnostics' } else { '1.0.0' }
+$version = if ($Diagnostic) { '1.1.0-diagnostics' } else { '1.1.0' }
 $package = Join-Path $release "VKomado-$version-win-x64"
 New-Item -ItemType Directory -Path $package -Force | Out-Null
 Copy-Item -LiteralPath "$root/artifacts/viewer-build/Release/lgwl_viewer.exe" -Destination "$package/VKomado.exe" -Force

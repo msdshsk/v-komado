@@ -5,7 +5,7 @@
 #include <sstream>
 
 namespace sharedvd {
-KeyBindings default_bindings() { return {{{0, VK_F6}, {MOD_SHIFT, VK_F6}}}; }
+KeyBindings default_bindings() { return {{{0, VK_F6}, {MOD_SHIFT, VK_F6}, {0, VK_F8}}}; }
 std::filesystem::path hotkey_config_path() {
   PWSTR value{};
   if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &value))) throw std::runtime_error("Cannot locate LocalAppData");
@@ -41,17 +41,19 @@ std::wstring validate_bindings(const KeyBindings& bindings) {
         (key.key == VK_ESCAPE && key.modifiers == (MOD_CONTROL | MOD_SHIFT)))
       return L"Windowsの基本操作に使われる組み合わせです。別のキーを選んでください。";
   }
-  if (bindings[0].key && bindings[0] == bindings[1]) return L"2つの操作に同じキーは設定できません。";
+  for (int i = 0; i < kShortcutCount; ++i)
+    for (int j = i + 1; j < kShortcutCount; ++j)
+      if (bindings[i].key && bindings[i] == bindings[j]) return L"複数の操作に同じキーは設定できません。";
   return {};
 }
 Hotkeys::~Hotkeys() { shutdown(); }
 void Hotkeys::unbind() {
-  for (int i = 0; i < 2; ++i) { if (registered_[i]) UnregisterHotKey(owner_, 60 + i); registered_[i] = false; }
+  for (int i = 0; i < kShortcutCount; ++i) { if (registered_[i]) UnregisterHotKey(owner_, 60 + i); registered_[i] = false; }
 }
 void Hotkeys::bind() {
   unbind();
   if (!active_) return;
-  for (int i = 0; i < 2; ++i) if (bindings_[i].key)
+  for (int i = 0; i < kShortcutCount; ++i) if (bindings_[i].key)
     registered_[i] = RegisterHotKey(owner_, 60 + i, bindings_[i].modifiers | MOD_NOREPEAT, bindings_[i].key) != FALSE;
 }
 void Hotkeys::initialize(HWND owner, std::filesystem::path path, std::function<void()> changed, bool activate) {
@@ -59,11 +61,16 @@ void Hotkeys::initialize(HWND owner, std::filesystem::path path, std::function<v
 }
 void Hotkeys::reload() {
   if (editor_) return;
-  bindings_ = default_bindings(); load_warning_.clear();
+  bindings_ = default_bindings(); follow_dialogs_ = false; load_warning_.clear();
   if (std::filesystem::exists(path_)) {
-    std::ifstream file(path_); unsigned version{}; KeyBindings candidate{}; std::string trailing;
-    if ((file >> version >> candidate[0].modifiers >> candidate[0].key >> candidate[1].modifiers >> candidate[1].key) &&
-        version == 1 && !(file >> trailing) && validate_bindings(candidate).empty()) bindings_ = candidate;
+    std::ifstream file(path_); unsigned version{}, follow{}; auto candidate = default_bindings(); std::string trailing;
+    bool ok = static_cast<bool>(file >> version) && (version == 1 || version == 2);
+    for (int i = 0; ok && i < (version == 1 ? 2 : kShortcutCount); ++i)
+      ok = static_cast<bool>(file >> candidate[i].modifiers >> candidate[i].key);
+    if (ok && version == 2) ok = static_cast<bool>(file >> follow) && follow <= 1;
+    // Preserve both old bindings if the user already assigned F8 to either of them.
+    if (version == 1 && (candidate[2] == candidate[0] || candidate[2] == candidate[1])) candidate[2] = {};
+    if (ok && !(file >> trailing) && validate_bindings(candidate).empty()) { bindings_ = candidate; follow_dialogs_ = follow != 0; }
     else load_warning_ = L"保存された設定を読み取れなかったため、初期値で起動しました。保存すると修復できます。";
   }
   bind(); if (changed_) changed_();
@@ -75,7 +82,7 @@ void Hotkeys::shutdown() {
 }
 bool Hotkeys::register_pair(const KeyBindings& candidate, std::wstring& error) {
   unbind();
-  for (int i = 0; i < 2; ++i) if (candidate[i].key) {
+  for (int i = 0; i < kShortcutCount; ++i) if (candidate[i].key) {
     registered_[i] = RegisterHotKey(owner_, 60 + i, candidate[i].modifiers | MOD_NOREPEAT, candidate[i].key) != FALSE;
     if (!registered_[i]) {
       error = key_label(candidate[i]) + L" を登録できません。他のアプリやWindowsで使用されている可能性があります。";
@@ -84,7 +91,7 @@ bool Hotkeys::register_pair(const KeyBindings& candidate, std::wstring& error) {
   }
   return true;
 }
-bool Hotkeys::apply(const KeyBindings& candidate, std::wstring& error) {
+bool Hotkeys::apply(const KeyBindings& candidate, std::wstring& error, std::optional<bool> follow_dialogs) {
   error = validate_bindings(candidate); if (!error.empty()) return false;
   if (!register_pair(candidate, error)) { if (!editor_) bind(); return false; }
   std::filesystem::path temporary = path_;
@@ -93,8 +100,9 @@ bool Hotkeys::apply(const KeyBindings& candidate, std::wstring& error) {
     std::filesystem::create_directories(path_.parent_path());
     {
       std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
-      output << "1\n" << candidate[0].modifiers << " " << candidate[0].key << "\n"
-             << candidate[1].modifiers << " " << candidate[1].key << "\n";
+      output << "2\n";
+      for (const auto key : candidate) output << key.modifiers << " " << key.key << "\n";
+      output << follow_dialogs.value_or(follow_dialogs_) << "\n";
       output.close(); if (!output) throw std::runtime_error("write");
     }
     if (!MoveFileExW(temporary.c_str(), path_.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) throw std::runtime_error("replace");
@@ -102,7 +110,7 @@ bool Hotkeys::apply(const KeyBindings& candidate, std::wstring& error) {
     std::error_code ec; std::filesystem::remove(temporary, ec);
     unbind(); if (!editor_) bind(); error = L"設定ファイルを保存できません。以前の設定を保持しました。"; return false;
   }
-  bindings_ = candidate; load_warning_.clear();
+  bindings_ = candidate; follow_dialogs_ = follow_dialogs.value_or(follow_dialogs_); load_warning_.clear();
   if (!active_) unbind();
   if (changed_) changed_();
   HWND viewer = FindWindowW(L"LGWLViewerWindow", nullptr);
@@ -110,7 +118,7 @@ bool Hotkeys::apply(const KeyBindings& candidate, std::wstring& error) {
   return true;
 }
 void Hotkeys::populate(const KeyBindings& bindings) {
-  for (int i = 0; i < 2; ++i) {
+  for (int i = 0; i < kShortcutCount; ++i) {
     UINT flags = (bindings[i].modifiers & MOD_CONTROL ? HOTKEYF_CONTROL : 0) |
                  (bindings[i].modifiers & MOD_ALT ? HOTKEYF_ALT : 0) |
                  (bindings[i].modifiers & MOD_SHIFT ? HOTKEYF_SHIFT : 0);
@@ -121,7 +129,7 @@ void Hotkeys::populate(const KeyBindings& bindings) {
 }
 KeyBindings Hotkeys::edited() const {
   KeyBindings result{};
-  for (int i = 0; i < 2; ++i) if (IsDlgButtonChecked(editor_, 2110 + i) == BST_CHECKED) {
+  for (int i = 0; i < kShortcutCount; ++i) if (IsDlgButtonChecked(editor_, 2110 + i) == BST_CHECKED) {
     WORD key = static_cast<WORD>(SendDlgItemMessageW(editor_, 2100 + i, HKM_GETHOTKEY, 0, 0));
     UINT flags = HIBYTE(key);
     result[i] = {static_cast<UINT>((flags & HOTKEYF_CONTROL ? MOD_CONTROL : 0) |
@@ -139,7 +147,7 @@ void Hotkeys::show_editor(std::function<void()> closed) {
   cls.hIcon = LoadIconW(cls.hInstance, MAKEINTRESOURCEW(101)); cls.lpszClassName = L"SharedVDHotkeyEditor"; RegisterClassW(&cls);
   const UINT dpi = GetDpiForWindow(owner_); auto px = [dpi](int n) { return MulDiv(n, dpi ? dpi : 96, 96); };
   MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY), &monitor);
-  RECT rect{0, 0, px(640), px(400)};
+  RECT rect{0, 0, px(640), px(540)};
   constexpr DWORD style = WS_CAPTION | WS_SYSMENU | WS_POPUP;
   AdjustWindowRectExForDpi(&rect, style, FALSE, WS_EX_CONTROLPARENT, dpi);
   int width = rect.right - rect.left, height = rect.bottom - rect.top;
@@ -154,17 +162,21 @@ void Hotkeys::show_editor(std::function<void()> closed) {
     SendMessageW(result, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE); return result;
   };
   control(L"STATIC", L"入力欄をクリックして、使いたいキーの組み合わせを押してください。", 24, 22, 594, 26, 0);
-  for (int i = 0; i < 2; ++i) {
-    control(L"STATIC", i == 0 ? L"メイン画面へカーソルを戻す" : L"ウィンドウを選んで移動", 24, 72 + i * 60, 250, 30, 0);
+  for (int i = 0; i < kShortcutCount; ++i) {
+    const wchar_t* labels[] = {L"メイン画面へカーソルを戻す", L"ウィンドウを選んで移動", L"アクティブウィンドウを往復移動"};
+    control(L"STATIC", labels[i], 24, 72 + i * 60, 254, 30, 0);
     control(L"BUTTON", L"使用する", 282, 72 + i * 60, 94, 30, 2110 + i, BS_AUTOCHECKBOX | WS_TABSTOP);
     HWND field = control(HOTKEY_CLASSW, L"", 390, 70 + i * 60, 222, 34, 2100 + i, WS_TABSTOP | WS_BORDER);
     SendMessageW(field, HKM_SETRULES, 0, 0);
   }
-  control(L"STATIC", L"Ctrl / Alt / Shift＋キー、またはFキー単独を設定できます。\r\nF12・Windowsキーは対象外です。設定中はショートカットを一時停止します。\r\n他アプリ内のショートカットとの重複は自動検出できません。", 24, 192, 594, 72, 0);
-  control(L"STATIC", load_warning_.c_str(), 24, 274, 594, 56, 2120);
-  control(L"BUTTON", L"初期値に戻す", 24, 350, 128, 32, 2121, WS_TABSTOP);
-  control(L"BUTTON", L"保存", 390, 350, 100, 32, IDOK, WS_TABSTOP | BS_DEFPUSHBUTTON);
-  control(L"BUTTON", L"キャンセル", 502, 350, 110, 32, IDCANCEL, WS_TABSTOP);
+  control(L"STATIC", L"Ctrl / Alt / Shift＋キー、またはFキー単独を設定できます。\r\nF12・Windowsキーは対象外です。設定中はショートカットを一時停止します。\r\n他アプリ内のショートカットとの重複は自動検出できません。", 24, 252, 594, 72, 0);
+  control(L"BUTTON", L"新しい付属ダイアログを仮想画面の親へ寄せる（試験的）", 24, 336, 594, 30, 2130, BS_AUTOCHECKBOX | WS_TABSTOP);
+  CheckDlgButton(editor_, 2130, follow_dialogs_ ? BST_CHECKED : BST_UNCHECKED);
+  control(L"STATIC", L"同一プロセスで親子関係のある新規ダイアログだけが対象です。\r\n共有中は移動した内容も相手に表示されます。独立した新規アプリは対象外です。", 24, 370, 594, 44, 0);
+  control(L"STATIC", load_warning_.c_str(), 24, 422, 594, 56, 2120);
+  control(L"BUTTON", L"初期値に戻す", 24, 490, 128, 32, 2121, WS_TABSTOP);
+  control(L"BUTTON", L"保存", 390, 490, 100, 32, IDOK, WS_TABSTOP | BS_DEFPUSHBUTTON);
+  control(L"BUTTON", L"キャンセル", 502, 490, 110, 32, IDCANCEL, WS_TABSTOP);
   populate(bindings_); ShowWindow(editor_, SW_SHOW); SetForegroundWindow(editor_); SetFocus(GetDlgItem(editor_, 2101));
 }
 LRESULT CALLBACK Hotkeys::editor_proc(HWND window, UINT message, WPARAM wp, LPARAM lp) {
@@ -179,11 +191,11 @@ LRESULT CALLBACK Hotkeys::editor_proc(HWND window, UINT message, WPARAM wp, LPAR
     case WM_COMMAND:
       if (LOWORD(wp) == IDOK) {
         std::wstring error;
-        if (self->apply(self->edited(), error)) { self->committed_ = true; DestroyWindow(window); }
+        if (self->apply(self->edited(), error, IsDlgButtonChecked(window, 2130) == BST_CHECKED)) { self->committed_ = true; DestroyWindow(window); }
         else SetDlgItemTextW(window, 2120, error.c_str());
       } else if (LOWORD(wp) == IDCANCEL) DestroyWindow(window);
-      else if (LOWORD(wp) == 2121) { self->populate(default_bindings()); SetDlgItemTextW(window, 2120, L"保存すると初期値を適用します。"); }
-      else if (LOWORD(wp) == 2110 || LOWORD(wp) == 2111) EnableWindow(GetDlgItem(window, LOWORD(wp) - 10), IsDlgButtonChecked(window, LOWORD(wp)) == BST_CHECKED);
+      else if (LOWORD(wp) == 2121) { self->populate(default_bindings()); CheckDlgButton(window, 2130, BST_UNCHECKED); SetDlgItemTextW(window, 2120, L"保存すると初期値を適用します。"); }
+      else if (LOWORD(wp) >= 2110 && LOWORD(wp) < 2110 + kShortcutCount) EnableWindow(GetDlgItem(window, LOWORD(wp) - 10), IsDlgButtonChecked(window, LOWORD(wp)) == BST_CHECKED);
       return 0;
     case WM_CLOSE: DestroyWindow(window); return 0;
     case WM_DESTROY:

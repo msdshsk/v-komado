@@ -14,6 +14,7 @@ add_executable(lgwl_viewer WIN32
   src/viewer.cpp
   ../app/window_picker.cpp
   ../app/hotkeys.cpp
+  ../app/dialog_follower.cpp
 )
 target_include_directories(lgwl_viewer PRIVATE ../app)
 

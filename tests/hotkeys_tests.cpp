@@ -36,19 +36,23 @@ int wmain(int argc,wchar_t** argv) {
     candidate[1]={MOD_WIN,'K'};check(!validate_bindings(candidate).empty(),"Windows key reserved");
     candidate[1]={0,VK_F13};check(validate_bindings(candidate).empty(),"F13 hardware macro key supported");
     Hotkeys keys;keys.initialize(owner,file);
-    candidate={{{MOD_CONTROL|MOD_ALT,'K'},{MOD_CONTROL|MOD_ALT,'J'}}};std::wstring error;
-    check(keys.apply(candidate,error),"custom shortcuts register and save");
+    check(defaults[2].key==VK_F8&&!keys.follow_dialogs(),"F8 direct move and opt-in dialog following defaults");
+    candidate={{{MOD_CONTROL|MOD_ALT,'K'},{MOD_CONTROL|MOD_ALT,'J'},{MOD_CONTROL|MOD_ALT,'L'}}};std::wstring error;
+    check(keys.apply(candidate,error,true),"three custom shortcuts and dialog preference register and save");
     check(keys.registered(0)&&keys.registered(1),"both configured actions active");
     auto saved=bytes(file);
     check(RegisterHotKey(competitor,800,MOD_NOREPEAT|MOD_CONTROL|MOD_ALT,'U')!=FALSE,"reserve competing global shortcut");
     auto blocked=candidate;blocked[1]={MOD_CONTROL|MOD_ALT,'U'};
     check(!keys.apply(blocked,error),"global collision rejected");
     check(bytes(file)==saved && keys.bindings()==candidate && keys.registered(0)&&keys.registered(1),"collision preserves file and restores old active keys");
+    blocked=candidate;blocked[2]={MOD_CONTROL|MOD_ALT,'U'};
+    check(!keys.apply(blocked,error,false)&&keys.follow_dialogs()&&keys.registered(2)&&bytes(file)==saved,"third-key collision preserves all bindings and dialog policy");
     UnregisterHotKey(competitor,800);
-    keys.shutdown();keys.initialize(owner,file);check(keys.bindings()==candidate,"settings survive reload");
+    keys.shutdown();keys.initialize(owner,file);check(keys.bindings()==candidate&&keys.follow_dialogs()&&keys.registered(2),"all three bindings and dialog option survive reload");
+    auto duplicate=candidate;duplicate[2]=candidate[0];check(!validate_bindings(duplicate).empty(),"third action cannot duplicate the first");
     keys.show_editor();pump();HWND editor=FindWindowW(L"SharedVDHotkeyEditor",nullptr);
-    check(editor&&GetDlgItem(editor,2100)&&GetDlgItem(editor,2101),"native editor has two key fields");
-    check(!keys.registered(0)&&!keys.registered(1),"keys suspended while recording");
+    check(editor&&GetDlgItem(editor,2100)&&GetDlgItem(editor,2101)&&GetDlgItem(editor,2102)&&GetDlgItem(editor,2130),"native editor has three key fields and dialog option");
+    check(!keys.registered(0)&&!keys.registered(1)&&!keys.registered(2),"all keys suspended while recording");
     SendDlgItemMessageW(editor,2100,HKM_SETHOTKEY,MAKEWORD('Q',HOTKEYF_CONTROL|HOTKEYF_ALT),0);
     SendDlgItemMessageW(editor,2101,HKM_SETHOTKEY,MAKEWORD('Q',HOTKEYF_CONTROL|HOTKEYF_ALT),0);
     SendMessageW(editor,WM_COMMAND,IDOK,0);
@@ -62,9 +66,15 @@ int wmain(int argc,wchar_t** argv) {
     SendMessageW(editor,WM_COMMAND,IDCANCEL,0);
     check(keys.bindings()==candidate&&keys.registered(0)&&keys.registered(1),"cancel restores previous shortcuts");
     keys.show_editor();pump();editor=FindWindowW(L"SharedVDHotkeyEditor",nullptr);
-    CheckDlgButton(editor,2110,BST_UNCHECKED);CheckDlgButton(editor,2111,BST_UNCHECKED);SendMessageW(editor,WM_COMMAND,IDOK,0);
-    check(!IsWindow(editor)&&!keys.bindings()[0].key&&!keys.bindings()[1].key,"both actions can be disabled from editor");
-    keys.shutdown();keys.initialize(owner,file);check(!keys.registered(0)&&!keys.registered(1)&&!keys.bindings()[0].key,"disabled shortcuts remain disabled after restart");
+    CheckDlgButton(editor,2110,BST_UNCHECKED);CheckDlgButton(editor,2111,BST_UNCHECKED);CheckDlgButton(editor,2112,BST_UNCHECKED);SendMessageW(editor,WM_COMMAND,IDOK,0);
+    check(!IsWindow(editor)&&!keys.bindings()[0].key&&!keys.bindings()[1].key&&!keys.bindings()[2].key,"all three actions can be disabled from editor");
+    keys.shutdown();keys.initialize(owner,file);check(!keys.registered(0)&&!keys.registered(1)&&!keys.registered(2)&&!keys.bindings()[2].key,"disabled shortcuts remain disabled after restart");
+    keys.shutdown();
+    {std::ofstream legacy(file);legacy<<"1\n0 119\n4 117\n";}
+    keys.initialize(owner,file);check(keys.bindings()[0].key==VK_F8&&keys.bindings()[1]==KeyBinding{MOD_SHIFT,VK_F6}&&!keys.bindings()[2].key&&!keys.follow_dialogs(),"v1 migration preserves existing F8 assignment and leaves dialog following off");
+    keys.shutdown();
+    {std::ofstream legacy(file);legacy<<"1\n2 75\n2 74\n";}
+    keys.initialize(owner,file);check(keys.bindings()[0]==KeyBinding{MOD_CONTROL,'K'}&&keys.bindings()[1]==KeyBinding{MOD_CONTROL,'J'}&&keys.bindings()[2]==KeyBinding{0,VK_F8},"v1 migration adds direct key without overwriting customized actions");
     keys.shutdown();
     const auto invalid=dir/L"directory-instead-of-file";std::filesystem::create_directory(invalid);
     keys.initialize(owner,invalid);

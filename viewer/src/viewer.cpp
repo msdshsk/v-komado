@@ -1,5 +1,6 @@
 #include <windows.h>
 #include "window_picker.h"
+#include "dialog_follower.h"
 #include "hotkeys.h"
 #include <shellapi.h>
 #include <shlobj.h>
@@ -673,6 +674,8 @@ class ViewerApp {
     hotkeys_.initialize(hwnd_, options_.hotkey_config, [this] {
       return_hotkey_registered_ = hotkeys_.registered(0);
       picker_hotkey_registered_ = hotkeys_.registered(1);
+      dialog_follower_.reset();
+      if (target_) dialog_follower_.tick(target_->monitor, hotkeys_.follow_dialogs(), options_.rescue_process_id);
       update_title(0.0);
       if (chrome_) InvalidateRect(chrome_, nullptr, FALSE);
       logger_.write(L"hotkeys return=" + hotkeys_.label(0) + L" picker=" + hotkeys_.label(1) +
@@ -792,6 +795,9 @@ class ViewerApp {
       case WM_HOTKEY:
         if (w_param == kReturnHotkey && return_hotkey_registered_) { picker_.close(); return_to_primary(); }
         if (w_param == kPickerHotkey && picker_hotkey_registered_) toggle_picker();
+        if (w_param == 62 && hotkeys_.registered(2) && target_)
+          picker_.move_active(hwnd_, target_->monitor, options_.rescue_process_id,
+            [this](const std::wstring& message) { logger_.write(message); });
         return 0;
       case WM_WINDOWPOSCHANGING:
         if (IsZoomed(hwnd_) && !fullscreen_ && !IsIconic(hwnd_)) {
@@ -852,6 +858,7 @@ class ViewerApp {
         break;
       case WM_DISPLAYCHANGE:
         picker_.close();
+        dialog_follower_.reset();
         PostMessageW(hwnd_, kRestartCaptureMessage, 0, 0);
         return 0;
       case kFrameMessage:
@@ -879,6 +886,9 @@ class ViewerApp {
           }
           previous_ui_tick_ = now;
           update_chrome_visibility();
+          if (target_) dialog_follower_.tick(target_->monitor,
+              hotkeys_.follow_dialogs() && !picker_.open() && !moving_window_ && !FindWindowW(L"SharedVDHotkeyEditor", nullptr),
+              options_.rescue_process_id);
         }
         if (w_param == kTelemetryTimer) {
           update_telemetry();
@@ -888,6 +898,7 @@ class ViewerApp {
         if (options_.keep_windows || evacuate_windows()) DestroyWindow(hwnd_);
         return 0;
       case WM_DESTROY:
+        dialog_follower_.reset();
         picker_.close();
         hotkeys_.shutdown();
         picker_hotkey_registered_ = false;
@@ -1131,6 +1142,9 @@ class ViewerApp {
     const std::wstring pick_label = L"ウィンドウを選んで移動\t" + hotkeys_.label(1) +
         (!picker_hotkey_registered_ && hotkeys_.bindings()[1].key ? L"（登録不可）" : L"");
     AppendMenuW(menu, MF_STRING, kPickWindow, pick_label.c_str());
+    const std::wstring active_label = L"アクティブウィンドウの往復キー\t" + hotkeys_.label(2) +
+        (!hotkeys_.registered(2) && hotkeys_.bindings()[2].key ? L"（登録不可）" : L"");
+    AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, active_label.c_str());
     AppendMenuW(menu, MF_STRING, kRescueWindows, L"仮想画面のウィンドウをメイン画面へ戻す");
     const std::wstring return_label = L"メイン画面へ戻る\t" + hotkeys_.label(0) +
         (!return_hotkey_registered_ && hotkeys_.bindings()[0].key ? L"（登録不可）" : L"");
@@ -1831,6 +1845,7 @@ class ViewerApp {
   bool picker_hotkey_registered_ = false;
   sharedvd::WindowPicker picker_;
   sharedvd::Hotkeys hotkeys_;
+  sharedvd::DialogFollower dialog_follower_;
   bool click_pending_ = false;
   bool moving_window_ = false;
   bool menu_open_ = false;

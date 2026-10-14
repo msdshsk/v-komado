@@ -1,6 +1,6 @@
-# VKomado 1.0.0 セットアップ
+# VKomado 1.1.0 セットアップ
 
-Windows 11 x64用。配布物は `VKomado-1.0.0-Setup-win-x64.exe`。ARM64と32bit Windowsには対応しない。VC++ランタイムは静的リンクしており、利用者が開発ツールや.NETを追加する必要はない。
+Windows 11 x64用。配布物は `VKomado-1.1.0-Setup-win-x64.exe`。ARM64と32bit Windowsには対応しない。VC++ランタイムは静的リンクしており、利用者が開発ツールや.NETを追加する必要はない。
 
 ## 利用方法
 

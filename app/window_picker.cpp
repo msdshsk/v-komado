@@ -11,7 +11,8 @@ bool visible_app(HWND window) {
   if (!IsWindowVisible(window) || window == GetShellWindow() || window == GetDesktopWindow()) return false;
   wchar_t name[128]{}; GetClassNameW(window, name, 128);
   for (auto cls : {L"Progman", L"WorkerW", L"Shell_TrayWnd", L"Shell_SecondaryTrayWnd",
-                   L"LGWLViewerWindow", L"SharedVDControlWindow", L"SharedVDWindowPicker"})
+                   L"LGWLViewerWindow", L"SharedVDControlWindow", L"SharedVDWindowPicker",
+                   L"SharedVDHotkeyEditor", L"SharedVDHoverChrome", L"SharedVDCursorRing", L"#32768", L"tooltips_class32"})
     if (wcscmp(name, cls) == 0) return false;
   DWORD cloaked{};
   return !(SUCCEEDED(DwmGetWindowAttribute(window, DWMWA_CLOAKED, &cloaked, sizeof(cloaked))) && cloaked);
@@ -39,12 +40,27 @@ int WindowPicker::px(int value) const { return MulDiv(value, dpi_, 96); }
 void WindowPicker::toggle(HWND owner, HMONITOR virtual_monitor, DWORD only_process,
                           std::function<void(const std::wstring&)> log) {
   if (window_) { if (!busy_) close(true); return; }
+  begin(owner, virtual_monitor, only_process, std::move(log));
+}
+void WindowPicker::move_active(HWND owner, HMONITOR virtual_monitor, DWORD only_process,
+                               std::function<void(const std::wstring&)> log) {
+  if (window_) return;
+  const HWND active = GetForegroundWindow();
+  DWORD process{}; GetWindowThreadProcessId(active, &process);
+  if (!active || active == owner || process == GetCurrentProcessId() ||
+      (only_process && process != only_process) || !visible_app(active) ||
+      (GetWindowLongPtrW(active, GWL_STYLE) & WS_CHILD)) return;
+  begin(owner, virtual_monitor, only_process, std::move(log), active);
+}
+void WindowPicker::begin(HWND owner, HMONITOR virtual_monitor, DWORD only_process,
+                         std::function<void(const std::wstring&)> log, HWND active) {
   owner_ = owner; virtual_ = virtual_monitor; only_process_ = only_process; log_ = std::move(log);
+  direct_ = active != nullptr;
   primary_ = MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
   MONITORINFO main{sizeof(main)}, target{sizeof(target)};
   if (primary_ == virtual_ || !GetMonitorInfoW(primary_, &main) || !GetMonitorInfoW(virtual_, &target)) return;
   GetCursorPos(&original_cursor_); previous_foreground_ = GetForegroundWindow();
-  returning_ = MonitorFromPoint(original_cursor_, MONITOR_DEFAULTTONULL) == virtual_;
+  returning_ = (direct_ ? MonitorFromWindow(active, MONITOR_DEFAULTTONULL) : MonitorFromPoint(original_cursor_, MONITOR_DEFAULTTONULL)) == virtual_;
   destination_ = returning_ ? primary_ : virtual_;
   page_ = selected_ = 0; busy_ = false; status_.clear(); pending_.clear();
   WNDCLASSEXW cls{sizeof(cls)}; cls.hInstance = GetModuleHandleW(nullptr);
@@ -70,6 +86,12 @@ void WindowPicker::toggle(HWND owner, HMONITOR virtual_monitor, DWORD only_proce
     HWND button = CreateWindowExW(0, L"BUTTON", entry.second, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
         0, 0, 0, 0, window_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(entry.first)), cls.hInstance, nullptr);
     SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
+  }
+  if (direct_) {
+    DWORD process{}; GetWindowThreadProcessId(active, &process);
+    wchar_t caption[1024]{}; GetWindowTextW(active, caption, 1024);
+    choices_ = {{active, process, MonitorFromWindow(active, MONITOR_DEFAULTTONULL), caption, application_name(process)}};
+    move_selected(); return; // Hidden host handles completion without opening or activating the chooser.
   }
   refresh(); ShowWindow(window_, SW_SHOWNORMAL); SetForegroundWindow(window_); SetFocus(window_);
   // Bringing the pointer to the chooser makes the remote-to-main action usable immediately.
@@ -210,7 +232,7 @@ void WindowPicker::move_selected() {
   const WindowChoice choice = choices_[selected_];
   MONITORINFO destination{sizeof(destination)};
   if (!valid(choice) || !GetMonitorInfoW(destination_, &destination)) {
-    status_ = L"ウィンドウまたは画面が変わりました。一覧を更新しました。"; refresh(); return;
+    finish(false, L"ウィンドウまたは画面が変わりました。一覧を更新しました。"); return;
   }
   pending_.clear();
   struct Context { WindowPicker* self; WindowChoice choice; RECT work; bool failed = false; } context{this, choice, destination.rcWork};
@@ -237,7 +259,7 @@ void WindowPicker::move_selected() {
     return TRUE;
   }, reinterpret_cast<LPARAM>(&context));
   if (context.failed || std::none_of(pending_.begin(), pending_.end(), [&](const auto& item) { return item.window == choice.window; })) {
-    status_ = L"移動対象を取得できませんでした。更新してお試しください。"; refresh(); return;
+    finish(false, L"移動対象を取得できませんでした。更新してお試しください。"); return;
   }
   std::stable_sort(pending_.begin(), pending_.end(), [&](const auto& a, const auto& b) {
     return (a.window != choice.window) < (b.window != choice.window);
@@ -276,12 +298,18 @@ void WindowPicker::check_move() {
 void WindowPicker::finish(bool success, const std::wstring& error) {
   KillTimer(window_, kMoveTimer); busy_ = false;
   log_(std::wstring(L"picker_move_result=") + (success ? L"success" : L"failed"));
-  if (!success) { status_ = error; pending_.clear(); refresh(); return; }
+  if (!success) {
+    status_ = error; pending_.clear(); refresh();
+    if (direct_) { direct_ = false; ShowWindow(window_, SW_SHOWNOACTIVATE); }
+    return;
+  }
   HWND chosen = choices_[selected_].window;
+  const bool retain_focus = !direct_ || GetForegroundWindow() == previous_foreground_;
   RECT rect{}; GetWindowRect(chosen, &rect);
   // Restore maximization only after the normal rectangle has reached the new display.
   for (const auto& pending : pending_) if (pending.maximize) ShowWindowAsync(pending.window, SW_MAXIMIZE);
   close();
+  if (!retain_focus) return; // A user who changed apps during an asynchronous move keeps focus/cursor.
   HWND focus = GetLastActivePopup(chosen);
   if (!IsWindowVisible(focus)) focus = chosen;
   SetForegroundWindow(focus);

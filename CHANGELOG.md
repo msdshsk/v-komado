@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Added a configurable active-window transfer shortcut (F8 by default). Toggles between the VDD and primary display according to the window's location, preserving maximization and moving owned dialogs.
+- Added opt-in, experimental following of newly shown dialogs owned by an active application on the virtual display. Only same-process ownership is followed; independent apps remain manually movable.
+- Preserved existing two-key configurations on upgrade, including custom F8 assignments. Automatic dialog following starts disabled.
+
+The dialog option does not guarantee placement for every application, elevated window or cross-process file picker. Saved 1.1 shortcut files cannot be read by 1.0.
+
 ## 1.0.0
 
 First public release of VKomado.
