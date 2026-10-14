@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- Added two switchable lists to the window picker: send windows from other displays to the virtual display, or return virtual-display windows to the primary display. Both window counts remain visible; the cursor determines only the initial list.
+- Switch lists using the panel buttons or local Ctrl+Tab, including when the initial list is empty. Switching refreshes candidates and resets pagination without moving the cursor. Cancel still restores the original cursor position.
+
 ## 1.1.0
 
 - Added a configurable active-window transfer shortcut (F8 by default). Toggles between the VDD and primary display according to the window's location, preserving maximization and moving owned dialogs.

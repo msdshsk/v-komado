@@ -31,6 +31,7 @@ class WindowPicker {
   static LRESULT CALLBACK procedure(HWND, UINT, WPARAM, LPARAM);
   LRESULT message(UINT, WPARAM, LPARAM);
   void refresh();
+  void switch_direction(bool returning);
   void layout();
   void thumbnails();
   void clear_thumbnails();
@@ -48,6 +49,7 @@ class WindowPicker {
   bool returning_{}, busy_{}, direct_{};
   UINT dpi_ = 96;
   int page_{}, selected_{}, pressed_ = -1, hover_ = -1;
+  int counts_[2]{};
   ULONGLONG deadline_{};
   std::wstring status_;
   std::vector<WindowChoice> choices_;

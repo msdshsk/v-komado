@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <objidl.h>
 #include <gdiplus.h>
+#include <algorithm>
 #include <iostream>
 #include <functional>
 #include <stdexcept>
@@ -91,6 +92,10 @@ int wmain(int argc, wchar_t** argv) {
     require(wait_for([&] { session.viewer = FindWindowW(L"LGWLViewerWindow", nullptr); DWORD pid{}; GetWindowThreadProcessId(session.viewer, &pid); return pid == session.process.dwProcessId; }), "owned viewer ready");
     wait_for([] { return false; }, 450);
     auto picker = [&] { HWND window = FindWindowW(L"SharedVDWindowPicker", nullptr); DWORD pid{}; GetWindowThreadProcessId(window, &pid); return pid == session.process.dwProcessId ? window : nullptr; };
+    auto cursor_arrived = [&](HWND window) {
+      require(wait_for([&] {RECT rect{};GetWindowRect(window,&rect);POINT point{};GetCursorPos(&point);
+        return point.x==(rect.left+rect.right)/2 && point.y==rect.top+std::min(60L,(rect.bottom-rect.top)/2);}),"normal-window transfer cursor placement completes");
+    };
     auto open = [&](bool returning, bool real_hotkey = false) {
       const auto area = returning ? target.rcWork : main.rcWork;
       SetCursorPos(area.left + 40, area.top + 40);
@@ -117,16 +122,29 @@ int wmain(int argc, wchar_t** argv) {
       wait_for([&] { SetForegroundWindow(window); return GetForegroundWindow() == window; });
       require(title(window).find(returning ? L"メイン画面へ戻す" : L"仮想画面へ送る") != std::wstring::npos, "direction follows cursor at invocation");
       require(MonitorFromWindow(window, MONITOR_DEFAULTTONULL) == primary, "picker appears on primary");
+      RECT panel{};GetWindowRect(window,&panel);
+      const bool positioned=wait_for([&] {POINT point{};GetCursorPos(&point);return point.x==(panel.left+panel.right)/2 && point.y==panel.top+MulDiv(65,GetDpiForWindow(window),96);});
+      if(!positioned){POINT point{};GetCursorPos(&point);std::cout<<"open cursor="<<point.x<<","<<point.y<<" expected="<<(panel.left+panel.right)/2<<","<<panel.top+MulDiv(65,GetDpiForWindow(window),96)<<" dpi="<<GetDpiForWindow(window)<<std::endl;}
+      require(positioned,"picker opening cursor placement completes");
       return window;
     };
     HWND chooser = open(false, true); screenshot(chooser, argv[3]);
     PostMessageW(chooser, WM_KEYDOWN, VK_RETURN, 0);
     require(wait_for([&] { return !picker(); }), "selection finishes without blocking viewer");
+    cursor_arrived(ordinary);
     require(MonitorFromWindow(ordinary, MONITOR_DEFAULTTONULL) == remote, "selected app sent to virtual display");
     require(MonitorFromWindow(dialog, MONITOR_DEFAULTTONULL) == remote, "owned dialog follows selected app");
     require(MonitorFromWindow(unrelated, MONITOR_DEFAULTTONULL) == primary, "other window of same process stays on primary");
-    chooser = open(true); PostMessageW(chooser, WM_KEYDOWN, VK_RETURN, 0);
+    chooser = open(false);
+    require(title(GetDlgItem(chooser,1110)).find(L"1 件")!=std::wstring::npos && title(GetDlgItem(chooser,1111)).find(L"1 件")!=std::wstring::npos,"both direction buttons count independent windows across displays");
+    POINT before_switch{}; GetCursorPos(&before_switch);
+    SendMessageW(GetDlgItem(chooser,1111),BM_CLICK,0,0);
+    require(title(chooser).find(L"メイン画面へ戻す")!=std::wstring::npos,"direction can change inside the panel without F6");
+    POINT after_switch{}; GetCursorPos(&after_switch);
+    require(before_switch.x==after_switch.x && before_switch.y==after_switch.y,"switching lists does not warp the cursor");
+    PostMessageW(chooser, WM_KEYDOWN, VK_RETURN, 0);
     require(wait_for([&] { return !picker(); }), "return selection completes");
+    cursor_arrived(ordinary);
     require(MonitorFromWindow(ordinary, MONITOR_DEFAULTTONULL) == primary && MonitorFromWindow(dialog, MONITOR_DEFAULTTONULL) == primary, "app and dialog return to primary");
     auto focus_owned = [&](HWND window) {
       require(wait_for([&] { SetForegroundWindow(window); return GetForegroundWindow() == window; }), "focus only owned fixture");
@@ -140,6 +158,9 @@ int wmain(int argc, wchar_t** argv) {
       key[0].ki.wVk=key[1].ki.wVk=VK_F8;key[1].ki.dwFlags=KEYEVENTF_KEYUP;
       require(SendInput(2,key,sizeof(INPUT))==2,"send real F8 global shortcut");
       require(wait_for([&] { return !picker() && MonitorFromWindow(window,MONITOR_DEFAULTTONULL)==destination; }),"F8 moves active window based on its monitor, without a chooser");
+      // The hidden host is destroyed before finish() restores focus and cursor.
+      // Wait for the final cursor jump before invoking another cursor-based action.
+      require(wait_for([&] {POINT point{};GetCursorPos(&point);return MonitorFromPoint(point,MONITOR_DEFAULTTONULL)==destination && (point.x!=area.left+40 || point.y!=area.top+40);}),"F8 completion cursor jump finishes");
     };
     direct(ordinary,remote);
     require(MonitorFromWindow(dialog,MONITOR_DEFAULTTONULL)==remote&&MonitorFromWindow(unrelated,MONITOR_DEFAULTTONULL)==primary,"F8 follows owned dialog but excludes independent sibling");
@@ -168,6 +189,8 @@ int wmain(int argc, wchar_t** argv) {
     SetCursorPos(main.rcWork.left+40,main.rcWork.top+40);POINT before_follow{};GetCursorPos(&before_follow);
     require(wait_for([&] {return MonitorFromWindow(fresh,MONITOR_DEFAULTTONULL)==remote;}),"new dialog follows virtual parent");
     POINT after_follow{};GetCursorPos(&after_follow);
+    if(before_follow.x!=after_follow.x || before_follow.y!=after_follow.y || GetForegroundWindow()!=fresh)
+      std::cout<<"follow cursor before="<<before_follow.x<<","<<before_follow.y<<" after="<<after_follow.x<<","<<after_follow.y<<" foreground="<<GetForegroundWindow()<<" expected="<<fresh<<std::endl;
     require(before_follow.x==after_follow.x&&before_follow.y==after_follow.y&&GetForegroundWindow()==fresh,"automatic following preserves cursor and foreground");
     SetWindowPos(fresh,nullptr,main.rcWork.left+100,main.rcWork.top+100,300,200,SWP_NOZORDER|SWP_NOACTIVATE);
     wait_for([] {return false;},1000);
@@ -185,6 +208,27 @@ int wmain(int argc, wchar_t** argv) {
     for(HWND item:{off_dialog,fresh,independent,local_dialog,after_off})DestroyWindow(item);
     direct(ordinary,primary);
     DestroyWindow(dialog); DestroyWindow(unrelated);
+    chooser = open(true);
+    require(title(GetDlgItem(chooser,1111)).find(L"0 件")!=std::wstring::npos && IsWindowEnabled(GetDlgItem(chooser,1110)),"empty initial return list still offers send list");
+    SendMessageW(GetDlgItem(chooser,1110),BM_CLICK,0,0); PostMessageW(chooser,WM_KEYDOWN,VK_RETURN,0);
+    require(wait_for([&] { return !picker() && MonitorFromWindow(ordinary,MONITOR_DEFAULTTONULL)==remote; }),"send works after switching away from empty return list");
+    cursor_arrived(ordinary);
+    chooser = open(false);
+    require(title(GetDlgItem(chooser,1110)).find(L"0 件")!=std::wstring::npos && IsWindowEnabled(GetDlgItem(chooser,1111)),"empty initial send list still offers return list");
+    SendMessageW(GetDlgItem(chooser,1111),BM_CLICK,0,0); PostMessageW(chooser,WM_KEYDOWN,VK_RETURN,0);
+    require(wait_for([&] { return !picker() && MonitorFromWindow(ordinary,MONITOR_DEFAULTTONULL)==primary; }),"return works after switching away from empty send list");
+    cursor_arrived(ordinary);
+    chooser = open(true);
+    require(GetForegroundWindow()==chooser,"local list shortcut targets owned picker");
+    INPUT tabs[4]{}; for(auto& key:tabs)key.type=INPUT_KEYBOARD;
+    tabs[0].ki.wVk=VK_CONTROL;tabs[1].ki.wVk=VK_TAB;
+    tabs[2].ki.wVk=VK_TAB;tabs[2].ki.dwFlags=KEYEVENTF_KEYUP;
+    tabs[3].ki.wVk=VK_CONTROL;tabs[3].ki.dwFlags=KEYEVENTF_KEYUP;
+    require(SendInput(4,tabs,sizeof(INPUT))==4,"send local Ctrl+Tab");
+    require(wait_for([&] {return title(chooser).find(L"仮想画面へ送る")!=std::wstring::npos;}),"Ctrl+Tab switches active list");
+    PostMessageW(chooser,WM_KEYDOWN,VK_ESCAPE,0); require(wait_for([&] {return !picker();}),"cancel after switching closes panel");
+    POINT restored{};GetCursorPos(&restored);
+    require(restored.x==target.rcWork.left+40 && restored.y==target.rcWork.top+40,"cancel restores invocation cursor even after direction changes");
     chooser = open(false); PostMessageW(chooser, WM_KEYDOWN, VK_ESCAPE, 0);
     require(wait_for([&] { return !picker(); }), "Esc cancels");
     POINT cursor{}; GetCursorPos(&cursor); std::cout << "cancel_cursor=" << cursor.x << "," << cursor.y << std::endl;
@@ -201,6 +245,9 @@ int wmain(int argc, wchar_t** argv) {
     PostMessageW(chooser,WM_KEYDOWN,VK_ESCAPE,0);require(wait_for([&] {return !picker();}),"failed direct action can be dismissed");
     chooser = open(false); PostMessageW(chooser, WM_KEYDOWN, VK_RETURN, 0);
     wait_for([] { return false; }, 100);
+    require(!IsWindowEnabled(GetDlgItem(chooser,1110)) && !IsWindowEnabled(GetDlgItem(chooser,1111)),"direction buttons disabled while a move is pending");
+    SendMessageW(chooser,WM_COMMAND,1111,0);
+    require(title(chooser).find(L"仮想画面へ送る")!=std::wstring::npos,"pending move cannot change destination");
     require(wait_for([&] { return IsWindowEnabled(GetDlgItem(chooser, 1103)) != FALSE; }, 3000), "rejected move returns to usable chooser");
     require(IsWindow(chooser) && MonitorFromWindow(ordinary, MONITOR_DEFAULTTONULL) == primary, "rejected move keeps window and chooser alive");
     RemovePropW(ordinary, L"RejectMove"); PostMessageW(chooser, WM_KEYDOWN, VK_ESCAPE, 0); wait_for([&] { return !picker(); });
@@ -215,7 +262,10 @@ int wmain(int argc, wchar_t** argv) {
     require(IsWindowEnabled(GetDlgItem(chooser, 1102)) != FALSE, "more than six windows enables next page");
     PostMessageW(chooser, WM_COMMAND, 1102, 0);
     require(wait_for([&] { return IsWindowEnabled(GetDlgItem(chooser, 1101)) && !IsWindowEnabled(GetDlgItem(chooser, 1102)); }), "last page remains reachable");
-    const UINT dpi = GetDpiForWindow(chooser); LPARAM point = MAKELPARAM(MulDiv(80, dpi, 96), MulDiv(150, dpi, 96));
+    SendMessageW(GetDlgItem(chooser,1111),BM_CLICK,0,0); SendMessageW(GetDlgItem(chooser,1110),BM_CLICK,0,0);
+    require(!IsWindowEnabled(GetDlgItem(chooser,1101)) && IsWindowEnabled(GetDlgItem(chooser,1102)),"switching direction resets page and selection");
+    SendMessageW(chooser,WM_COMMAND,1102,0);
+    const UINT dpi = GetDpiForWindow(chooser); LPARAM point = MAKELPARAM(MulDiv(80, dpi, 96), MulDiv(180, dpi, 96));
     PostMessageW(chooser, WM_LBUTTONDOWN, MK_LBUTTON, point); PostMessageW(chooser, WM_LBUTTONUP, 0, point);
     require(wait_for([&] { return !picker(); }), "thumbnail card mouse click moves selection");
     int moved = 0; for (HWND window : pages) if (MonitorFromWindow(window, MONITOR_DEFAULTTONULL) == remote) ++moved;

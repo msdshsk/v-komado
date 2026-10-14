@@ -63,6 +63,7 @@ void WindowPicker::begin(HWND owner, HMONITOR virtual_monitor, DWORD only_proces
   returning_ = (direct_ ? MonitorFromWindow(active, MONITOR_DEFAULTTONULL) : MonitorFromPoint(original_cursor_, MONITOR_DEFAULTTONULL)) == virtual_;
   destination_ = returning_ ? primary_ : virtual_;
   page_ = selected_ = 0; busy_ = false; status_.clear(); pending_.clear();
+  counts_[0] = counts_[1] = 0;
   WNDCLASSEXW cls{sizeof(cls)}; cls.hInstance = GetModuleHandleW(nullptr);
   cls.lpszClassName = L"SharedVDWindowPicker"; cls.lpfnWndProc = procedure;
   cls.hCursor = LoadCursorW(nullptr, IDC_ARROW); cls.hIcon = LoadIconW(cls.hInstance, MAKEINTRESOURCEW(101));
@@ -87,6 +88,9 @@ void WindowPicker::begin(HWND owner, HMONITOR virtual_monitor, DWORD only_proces
         0, 0, 0, 0, window_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(entry.first)), cls.hInstance, nullptr);
     SendMessageW(button, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
   }
+  for (int id : {1110, 1111})
+    CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+        0, 0, 0, 0, window_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), cls.hInstance, nullptr);
   if (direct_) {
     DWORD process{}; GetWindowThreadProcessId(active, &process);
     wchar_t caption[1024]{}; GetWindowTextW(active, caption, 1024);
@@ -122,6 +126,7 @@ bool WindowPicker::valid(const WindowChoice& choice) const {
 }
 void WindowPicker::refresh() {
   clear_thumbnails(); choices_.clear();
+  counts_[0] = counts_[1] = 0;
   EnumWindows([](HWND window, LPARAM param) -> BOOL {
     auto& self = *reinterpret_cast<WindowPicker*>(param);
     DWORD process{}; GetWindowThreadProcessId(window, &process);
@@ -132,8 +137,10 @@ void WindowPicker::refresh() {
     HWND owner = GetAncestor(window, GA_ROOTOWNER);
     if (owner != window && visible_app(owner)) return TRUE;
     HMONITOR monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONULL);
-    if (!monitor || ((monitor == self.virtual_) != self.returning_)) return TRUE;
+    if (!monitor) return TRUE;
     wchar_t title[1024]{}; if (!GetWindowTextW(window, title, 1024)) return TRUE;
+    ++self.counts_[monitor == self.virtual_ ? 1 : 0];
+    if ((monitor == self.virtual_) != self.returning_) return TRUE;
     self.choices_.push_back({window, process, monitor, title, application_name(process)});
     return TRUE;
   }, reinterpret_cast<LPARAM>(this));
@@ -141,10 +148,27 @@ void WindowPicker::refresh() {
   page_ = selected_ / kPageSize; hover_ = pressed_ = -1; layout();
 }
 
+void WindowPicker::switch_direction(bool returning) {
+  if (busy_ || returning == returning_) return;
+  returning_ = returning; destination_ = returning_ ? primary_ : virtual_;
+  page_ = selected_ = 0; status_.clear();
+  SetWindowTextW(window_, returning_ ? L"メイン画面へ戻す — VKomado" : L"仮想画面へ送る — VKomado");
+  refresh(); // Re-enumerate both displays; a window may have moved since the panel opened.
+}
+
 void WindowPicker::layout() {
   if (!window_) return;
   RECT client{}; GetClientRect(window_, &client);
-  const int gap = px(14), left = px(22), top = px(110);
+  const int gap = px(14), left = px(22), top = px(146);
+  const int tab_width = (client.right - 2 * left - gap) / 2;
+  for (int i = 0; i < 2; ++i) {
+    HWND button = GetDlgItem(window_, 1110 + i);
+    const auto text = std::wstring(i ? L"メイン画面へ戻す" : L"仮想画面へ送る") + L"  ·  " + std::to_wstring(counts_[i]) + L" 件";
+    SetWindowTextW(button, text.c_str());
+    MoveWindow(button, left + i * (tab_width + gap), px(90), tab_width, px(42), TRUE);
+    EnableWindow(button, !busy_);
+    InvalidateRect(button, nullptr, TRUE);
+  }
   const int width = (client.right - 2 * left - 2 * gap) / 3;
   const int height = (client.bottom - top - px(102) - gap) / 2;
   for (int i = 0; i < kPageSize; ++i) {
@@ -194,10 +218,9 @@ void WindowPicker::paint(HDC output) {
   HDC dc = CreateCompatibleDC(screen); HBITMAP bitmap = CreateCompatibleBitmap(screen, client.right, client.bottom);
   auto old_bitmap = SelectObject(dc, bitmap); auto old_font = SelectObject(dc, heading_);
   SetBkMode(dc, TRANSPARENT); fill(dc, client, RGB(20, 25, 34));
-  label(dc, returning_ ? L"メイン画面へ戻す" : L"仮想画面へ送る", {px(22), px(15), client.right - px(22), px(51)}, RGB(240, 245, 252));
+  label(dc, L"ウィンドウを移動", {px(22), px(15), client.right - px(22), px(51)}, RGB(240, 245, 252));
   SelectObject(dc, font_);
-  label(dc, L"ウィンドウを選択  ·  クリック / 矢印＋Enterで移動  ·  Escでキャンセル", {px(22), px(55), client.right - px(22), px(82)}, RGB(158, 177, 201));
-  label(dc, returning_ ? L"仮想画面 → メイン画面" : L"他の画面 → 仮想画面", {px(22), px(83), client.right - px(22), px(105)}, RGB(68, 207, 239));
+  label(dc, L"クリック / 矢印＋Enterで移動  ·  Ctrl＋Tabで一覧切替  ·  Escでキャンセル", {px(22), px(55), client.right - px(22), px(82)}, RGB(158, 177, 201));
   for (int i = 0; i < kPageSize && page_ * kPageSize + i < static_cast<int>(choices_.size()); ++i) {
     const int index = page_ * kPageSize + i; const auto& choice = choices_[index];
     RECT card = cards_[i]; fill(dc, card, index == selected_ ? RGB(54, 194, 224) : RGB(46, 57, 75));
@@ -209,7 +232,10 @@ void WindowPicker::paint(HDC output) {
     label(dc, choice.title, title, RGB(239, 244, 252));
     title.top += px(23); title.bottom += px(21); label(dc, choice.application, title, RGB(146, 168, 196));
   }
-  if (choices_.empty()) label(dc, L"移動できるウィンドウはありません", {px(22), px(170), client.right - px(22), px(250)}, RGB(165, 184, 210), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+  if (choices_.empty()) {
+    label(dc, L"この一覧に移動できるウィンドウはありません", {px(22), px(170), client.right - px(22), px(230)}, RGB(165, 184, 210), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    label(dc, L"上のボタンで反対側の一覧に切り替えられます", {px(22), px(230), client.right - px(22), px(270)}, RGB(153, 174, 198), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+  }
   const std::wstring text = status_.empty() ? L"選んだウィンドウと付属ダイアログを移動します" : status_;
   label(dc, text, {px(22), client.bottom - px(93), client.right - px(22), client.bottom - px(55)}, status_.empty() ? RGB(153, 174, 198) : RGB(255, 204, 130));
   label(dc, std::to_wstring(page_ + 1) + L" / " + std::to_wstring(std::max(1, (static_cast<int>(choices_.size()) + 5) / 6)) + L" ページ   ·   " + std::to_wstring(choices_.size()) + L" 件",
@@ -326,6 +352,23 @@ LRESULT CALLBACK WindowPicker::procedure(HWND window, UINT message, WPARAM wp, L
 }
 LRESULT WindowPicker::message(UINT message, WPARAM wp, LPARAM lp) {
   switch (message) {
+    case WM_DRAWITEM: {
+      const auto* item = reinterpret_cast<DRAWITEMSTRUCT*>(lp);
+      if (item->CtlID != 1110 && item->CtlID != 1111) break;
+      const bool selected = (item->CtlID == 1111) == returning_;
+      const bool disabled = (item->itemState & ODS_DISABLED) != 0;
+      RECT rect = item->rcItem;
+      fill(item->hDC, rect, selected ? RGB(54, 194, 224) : RGB(46, 57, 75));
+      InflateRect(&rect, -px(2), -px(2));
+      fill(item->hDC, rect, selected ? RGB(30, 65, 80) : RGB(31, 40, 54));
+      auto old_font = SelectObject(item->hDC, font_); const int old_mode = SetBkMode(item->hDC, TRANSPARENT);
+      const auto old_color = GetTextColor(item->hDC);
+      wchar_t text[128]{}; GetWindowTextW(item->hwndItem, text, 128);
+      label(item->hDC, text, rect, disabled ? RGB(110, 130, 150) : selected ? RGB(127, 234, 255) : RGB(201, 214, 230), DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+      if (item->itemState & ODS_FOCUS) { InflateRect(&rect, -px(3), -px(3)); DrawFocusRect(item->hDC, &rect); }
+      SetTextColor(item->hDC, old_color); SetBkMode(item->hDC, old_mode); SelectObject(item->hDC, old_font);
+      return TRUE;
+    }
     case WM_PAINT: paint(); return 0;
     case WM_PRINTCLIENT: paint(reinterpret_cast<HDC>(wp)); return 0;
     case WM_ERASEBKGND: return 1;
@@ -362,6 +405,7 @@ LRESULT WindowPicker::message(UINT message, WPARAM wp, LPARAM lp) {
     case WM_KEYDOWN:
       if (wp == VK_ESCAPE) { if (!busy_) close(true); return 0; }
       if (wp == VK_RETURN) { move_selected(); return 0; }
+      if (wp == VK_TAB && (GetKeyState(VK_CONTROL) & 0x8000)) { switch_direction(!returning_); return 0; }
       if (wp == VK_LEFT) select(selected_ - 1);
       if (wp == VK_RIGHT || wp == VK_TAB) select(selected_ + 1);
       if (wp == VK_UP) select(selected_ - 3);
@@ -377,6 +421,7 @@ LRESULT WindowPicker::message(UINT message, WPARAM wp, LPARAM lp) {
       if (LOWORD(wp) == 1102) select((page_ + 1) * 6);
       if (LOWORD(wp) == 1103) refresh();
       if (LOWORD(wp) == 1104) { close(true); return 0; }
+      if (LOWORD(wp) == 1110 || LOWORD(wp) == 1111) switch_direction(LOWORD(wp) == 1111);
       SetFocus(window_); return 0;
     case WM_TIMER: if (wp == kMoveTimer) check_move(); return 0;
     case WM_DISPLAYCHANGE: close(); return 0;
