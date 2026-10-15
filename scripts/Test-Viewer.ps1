@@ -31,6 +31,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Window rescue regression failed.' }
 & "$build/Release/picker_regression.exe" "$root/artifacts/viewer-build/Release/lgwl_viewer.exe" "$root/artifacts/picker-regression.log" "$root/artifacts/picker-ui.png" 2>&1 |
     Tee-Object "$root/artifacts/picker-regression-results.txt"
 if ($LASTEXITCODE -ne 0) { throw 'Window picker regression failed.' }
+& "$build/Release/picker_paint_regression.exe" 2>&1 | Tee-Object "$root/artifacts/picker-paint-regression-results.txt"
+if ($LASTEXITCODE -ne 0) { throw 'Window picker paint regression failed.' }
 & "$build/Release/render_benchmark.exe" "$root/artifacts/viewer-build/Release/lgwl_viewer.exe" "$root/artifacts/drag-background-regression.log" --drag-after-motion 2>&1 |
     Tee-Object "$root/artifacts/drag-background-regression-results.txt"
 if ($LASTEXITCODE -ne 0) { throw 'Dragging after another app has focus failed.' }

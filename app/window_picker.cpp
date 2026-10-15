@@ -76,7 +76,7 @@ void WindowPicker::begin(HWND owner, HMONITOR virtual_monitor, DWORD only_proces
   const int y = main.rcWork.top + (main.rcWork.bottom - main.rcWork.top - height) / 2;
   window_ = CreateWindowExW(WS_EX_TOOLWINDOW, cls.lpszClassName,
       returning_ ? L"メイン画面へ戻す — VKomado" : L"仮想画面へ送る — VKomado",
-      WS_POPUP | WS_CAPTION | WS_SYSMENU, x, y, width, height, owner_, nullptr, cls.hInstance, this);
+      WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, x, y, width, height, owner_, nullptr, cls.hInstance, this);
   if (!window_) return;
   dpi_ = GetDpiForWindow(window_);
   font_ = CreateFontW(-px(14), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Yu Gothic UI");
@@ -247,10 +247,23 @@ void WindowPicker::paint(HDC output) {
 
 void WindowPicker::select(int index) {
   if (busy_ || choices_.empty()) return;
+  const int previous = selected_;
   selected_ = std::clamp(index, 0, static_cast<int>(choices_.size()) - 1);
+  if (previous == selected_) return;
   const int page = selected_ / kPageSize;
   if (page != page_) { page_ = page; layout(); }
-  else InvalidateRect(window_, nullptr, FALSE);
+  else { invalidate_card(previous % kPageSize); invalidate_card(selected_ % kPageSize); }
+}
+
+void WindowPicker::invalidate_card(int slot) {
+  if (slot < 0 || slot >= kPageSize) return;
+  // Hover/selection change only the card frame. DWM owns the live preview;
+  // leave it and the child controls out of the parent's GDI paint region.
+  HRGN frame = CreateRectRgnIndirect(&cards_[slot]);
+  HRGN preview = CreateRectRgnIndirect(&previews_[slot]);
+  CombineRgn(frame, frame, preview, RGN_DIFF);
+  InvalidateRgn(window_, frame, FALSE);
+  DeleteObject(preview); DeleteObject(frame);
 }
 
 void WindowPicker::move_selected() {
@@ -387,11 +400,12 @@ LRESULT WindowPicker::message(UINT message, WPARAM wp, LPARAM lp) {
     }
     case WM_MOUSEMOVE: {
       POINT point{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)}; int hovered = -1;
-      for (int i = 0; i < 6; ++i) if (PtInRect(&cards_[i], point)) hovered = i;
-      if (hover_ != hovered) { hover_ = hovered; InvalidateRect(window_, nullptr, FALSE); }
+      for (int i = 0; i < kPageSize && page_ * kPageSize + i < static_cast<int>(choices_.size()); ++i)
+        if (PtInRect(&cards_[i], point)) hovered = i;
+      if (hover_ != hovered) { invalidate_card(hover_); hover_ = hovered; invalidate_card(hover_); }
       TRACKMOUSEEVENT track{sizeof(track), TME_LEAVE, window_, 0}; TrackMouseEvent(&track); return 0;
     }
-    case WM_MOUSELEAVE: hover_ = -1; InvalidateRect(window_, nullptr, FALSE); return 0;
+    case WM_MOUSELEAVE: invalidate_card(hover_); hover_ = -1; return 0;
     case WM_LBUTTONDOWN: {
       pressed_ = -1; POINT point{GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
       for (int i = 0; i < 6; ++i) if (PtInRect(&cards_[i], point) && page_ * 6 + i < static_cast<int>(choices_.size())) { pressed_ = i; select(page_ * 6 + i); }

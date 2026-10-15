@@ -1,4 +1,4 @@
-VKomado 1.2.0 — 仮想ディスプレイビューア（Windows 11 x64）
+VKomado 1.2.1 — 仮想ディスプレイビューア（Windows 11 x64）
 
 旧名SharedVDの後継です。旧版を終了してからVKomado.exeを起動してください。
 既存のキー設定を引き継ぐため、内部の設定・ログ保存先はSharedVDのまま維持します。

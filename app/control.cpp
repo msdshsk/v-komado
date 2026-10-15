@@ -56,7 +56,7 @@ LRESULT CALLBACK proc(HWND window,UINT message,WPARAM wp,LPARAM lp){
       open_button=control(L"BUTTON",L"ビューアを開く",396,222,172,42,103,WS_TABSTOP);
       uninstall_button=control(L"BUTTON",L"アンインストール",24,284,172,34,104,WS_TABSTOP);
       control(L"BUTTON",L"ショートカット設定",210,284,172,34,105,WS_TABSTOP);
-      control(L"STATIC",L"1.2.0  ·  ON／OFF時に管理者の確認が表示されます",24,338,540,30,0);
+      control(L"STATIC",L"1.2.1  ·  ON／OFF時に管理者の確認が表示されます",24,338,540,30,0);
       SendMessageW(on_button,BCM_SETSHIELD,0,TRUE);SendMessageW(off_button,BCM_SETSHIELD,0,TRUE);
       SetTimer(window,1,1000,nullptr);refresh();return 0;
     }

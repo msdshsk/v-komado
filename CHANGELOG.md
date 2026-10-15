@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+- Fixed redundant repainting in the window picker: parent painting now excludes child controls, and hover/selection updates repaint only the affected card frames, leaving live thumbnails untouched. Repeated movement within the same card no longer triggers extra painting.
+
 ## 1.2.0
 
 - Added two switchable lists to the window picker: send windows from other displays to the virtual display, or return virtual-display windows to the primary display. Both window counts remain visible; the cursor determines only the initial list.

@@ -5,7 +5,7 @@
 ; Keep the original identity and directory to upgrade SharedVD in place.
 AppId={{2D2B6B84-29EF-4D46-B60F-099928D881F7}
 AppName=VKomado
-AppVersion=1.2.0
+AppVersion=1.2.1
 AppPublisher=VKomado Project
 DefaultDirName={autopf}\SharedVD
 DisableDirPage=yes
@@ -18,7 +18,7 @@ MinVersion=10.0.22000
 PrivilegesRequired=admin
 WizardStyle=modern
 OutputDir={#Root}\artifacts\releases
-OutputBaseFilename=VKomado-1.2.0-Setup-win-x64
+OutputBaseFilename=VKomado-1.2.1-Setup-win-x64
 Compression=lzma2
 SolidCompression=yes
 UninstallDisplayIcon={app}\VKomado.Control.exe

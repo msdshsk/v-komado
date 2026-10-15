@@ -36,6 +36,7 @@ class WindowPicker {
   void thumbnails();
   void clear_thumbnails();
   void paint(HDC output = nullptr);
+  void invalidate_card(int slot);
   void select(int index);
   void move_selected();
   void check_move();
