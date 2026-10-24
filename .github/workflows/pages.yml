@@ -31,7 +31,8 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir -p _site
-          cp site/index.html site/style.css _site/
+          # site/ 配下は robots.txt・sitemap.xml・検索エンジンの所有権確認ファイルを含めてすべて配信する
+          cp site/* _site/
           cp assets/sharedvd.png _site/icon.png
       - uses: actions/upload-pages-artifact@v4
         with:
